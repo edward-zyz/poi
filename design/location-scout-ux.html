@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>餐饮门店选址辅助工具 · 全屏地图 UX</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      --bg: #0f172a;
+      --panel-bg: rgba(255, 255, 255, 0.96);
+      --primary: #2563eb;
+      --accent: #fb923c;
+      --border: rgba(148, 163, 184, 0.45);
+      --text: #1f2937;
+      --muted: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .map-canvas {
+      position: absolute;
+      inset: 0;
+      background: url("https://i.imgur.com/QLdFKtF.png") center/cover no-repeat;
+      filter: saturate(0.95);
+    }
+
+    .map-canvas::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(148, 163, 184, 0.12) 0%, rgba(15, 23, 42, 0.25) 100%);
+    }
+
+    /* Top control bar */
+    .topbar {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding: 16px 24px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      min-width: 780px;
+    }
+
+    .topbar .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 180px;
+    }
+
+    .topbar .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .topbar .brand span {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .control-group label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .control-group input,
+    .control-group select {
+      width: 200px;
+      height: 38px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      font-size: 14px;
+      color: var(--text);
+      background: white;
+    }
+
+    .primary {
+      height: 38px;
+      padding: 0 20px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: white;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 12px 22px rgba(37, 99, 235, 0.25);
+    }
+
+    /* Collapsible overlay panels */
+    input[type="checkbox"] {
+      display: none;
+    }
+
+    .panel {
+      position: absolute;
+      top: 96px;
+      bottom: 96px;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      border-radius: 18px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      box-shadow: 0 32px 60px rgba(15, 23, 42, 0.2);
+      backdrop-filter: blur(18px);
+      transition: width 0.35s ease, opacity 0.35s ease, transform 0.35s ease;
+      overflow: hidden;
+    }
+
+    .panel.collapsed {
+      width: 64px;
+    }
+
+    #toggle-left:checked ~ .layers-panel {
+      width: 64px;
+    }
+
+    #toggle-right:checked ~ .insight-panel {
+      width: 72px;
+    }
+
+    #toggle-left:checked ~ .layers-panel .panel-body,
+    #toggle-right:checked ~ .insight-panel .panel-body,
+    #toggle-right:checked ~ .insight-panel .panel-footer {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(20px);
+    }
+
+    #toggle-left:checked ~ .layers-panel .panel-body {
+      transform: translateX(-20px);
+    }
+
+    .panel .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .panel .panel-header h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .panel .panel-header label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--primary);
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .panel .panel-header label:hover {
+      background: rgba(37, 99, 235, 0.18);
+    }
+
+    .panel-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .panel-body section {
+      margin-bottom: 18px;
+    }
+
+    .panel-body section:last-child {
+      margin-bottom: 0;
+    }
+
+    .layer-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .layer-toggle .toggle {
+      width: 44px;
+      height: 22px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.4);
+      position: relative;
+    }
+
+    .toggle::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+    }
+
+    .toggle.active {
+      background: var(--primary);
+    }
+
+    .toggle.active::after {
+      left: 24px;
+    }
+
+    .radius-options {
+      display: flex;
+      gap: 8px;
+    }
+
+    .radius-chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      background: rgba(241, 245, 249, 0.7);
+    }
+
+    .radius-chip.active {
+      background: rgba(37, 99, 235, 0.14);
+      border-color: var(--primary);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .poi-card {
+      padding: 12px 14px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 12px;
+      background: rgba(248, 250, 252, 0.88);
+      margin-bottom: 12px;
+    }
+
+    .poi-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .poi-card h4 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .poi-card .badge {
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 11px;
+      background: rgba(37, 99, 235, 0.18);
+      color: var(--primary);
+    }
+
+    .poi-card p {
+      margin: 2px 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Insights panel */
+    .insight-panel {
+      right: 32px;
+    }
+
+    .layers-panel {
+      left: 32px;
+    }
+
+    .panel .subheader {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric-card {
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: rgba(248, 250, 252, 0.9);
+    }
+
+    .metric-card h5 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .metric-card .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(22, 163, 74, 0.18);
+      color: #15803d;
+      margin-top: 10px;
+    }
+
+    .panel-footer {
+      margin-top: auto;
+      padding: 16px 20px 20px;
+      background: rgba(248, 250, 252, 0.95);
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .panel-footer .actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .secondary {
+      height: 36px;
+      padding: 0 18px;
+      border-radius: 10px;
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      background: transparent;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .cache-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .cache-indicator .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+    }
+
+    /* Toolbar on map */
+    .map-toolbar {
+      position: absolute;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+    }
+
+    .toolbar-button {
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(248, 250, 252, 0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text);
+      backdrop-filter: blur(10px);
+    }
+
+    .toolbar-button .icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: var(--primary);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    /* Bottom status */
+    .status-bar {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 20px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.86);
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+
+    .status-bar strong {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <div class="map-canvas"></div>
+
+  <div class="topbar">
+    <div class="brand">
+      <span>Location Scout MVP</span>
+      <h1>餐饮门店选址辅助工具</h1>
+    </div>
+    <div class="control-group">
+      <label for="city-select">目标城市</label>
+      <select id="city-select">
+        <option>上海市</option>
+        <option>北京市</option>
+        <option>广州市</option>
+        <option>深圳市</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="brand-input">主品牌关键词</label>
+      <input id="brand-input" type="text" placeholder="如：喜茶、奈雪的茶">
+    </div>
+    <div class="control-group">
+      <label for="competitor-input">竞品关键词</label>
+      <input id="competitor-input" type="text" placeholder="最多 10 个关键词">
+    </div>
+    <button class="primary">生成分析</button>
+  </div>
+
+  <div class="map-toolbar">
+    <div class="toolbar-button">
+      <span class="icon">P</span>
+      选址规划模式
+    </div>
+    <div class="toolbar-button">
+      <span class="icon">H</span>
+      热力图调色
+    </div>
+    <div class="toolbar-button">
+      <span class="icon">L</span>
+      导出图层
+    </div>
+  </div>
+
+  <!-- Collapsible panel toggles -->
+  <input type="checkbox" id="toggle-left">
+  <input type="checkbox" id="toggle-right">
+
+  <aside class="panel layers-panel">
+    <div class="panel-header">
+      <h2>图层管理</h2>
+      <label for="toggle-left" title="展开/收起图层面板">«</label>
+    </div>
+    <div class="panel-body">
+      <section>
+        <div class="layer-toggle">
+          <span>品牌集中度图</span>
+          <div class="toggle active"></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:0 0 12px;">
+          根据品牌关键词生成热力分布，识别城市热门商圈。
+        </p>
+      </section>
+      <section>
+        <div class="layer-toggle">
+          <span>主品牌门店</span>
+          <div class="toggle active"></div>
+        </div>
+        <div class="radius-options">
+          <div class="radius-chip active">500m</div>
+          <div class="radius-chip">800m</div>
+          <div class="radius-chip">1000m</div>
+        </div>
+        <div class="poi-card" style="margin-top:12px;">
+          <h4>喜茶上海环贸店 <span class="badge">直营</span></h4>
+          <p>上海市黄浦区淮海中路 999 号</p>
+          <p class="cache-indicator" style="margin-top:6px;"><span class="dot"></span> 缓存数据 · 2 小时前更新</p>
+        </div>
+      </section>
+      <section>
+        <div class="layer-toggle">
+          <span>竞品品牌门店</span>
+          <div class="toggle active"></div>
+        </div>
+        <div class="radius-options">
+          <div class="radius-chip active">100m</div>
+          <div class="radius-chip">300m</div>
+          <div class="radius-chip">500m</div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:12px 0 0;">
+          展示竞品门店与主品牌重叠程度，评估直接竞争强度。
+        </p>
+      </section>
+      <section>
+        <div class="layer-toggle">
+          <span>选址规划圈</span>
+          <div class="toggle active"></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:0 0 12px;">
+          支持绘制 100m - 1500m 半径分析圈，最多保留 3 个候选点。
+        </p>
+        <button class="secondary" style="width:100%;">新增候选点</button>
+      </section>
+    </div>
+  </aside>
+
+  <aside class="panel insight-panel">
+    <div class="panel-header">
+      <h2>目标点位数据面板</h2>
+      <label for="toggle-right" title="展开/收起数据面板">»</label>
+    </div>
+    <div class="panel-body">
+      <div class="subheader">
+        <span><strong>候选点：</strong> 上海市黄浦区 淮海中路 999 号</span>
+        <span>半径 1000m · 数据范围：主品牌 + 竞品关键词</span>
+        <span class="cache-indicator"><span class="dot"></span> 来源：本地缓存 · 刷新于 2 分钟前</span>
+      </div>
+      <section>
+        <h3 style="margin:0 0 12px;font-size:15px;">品牌竞争概览</h3>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <h5>主品牌门店 (500m)</h5>
+            <strong>3 家</strong>
+            <div class="tag">缓存命中</div>
+          </div>
+          <div class="metric-card">
+            <h5>竞品门店 (100m)</h5>
+            <strong>2 家</strong>
+            <div class="tag" style="background:rgba(37, 99, 235, 0.18);color:var(--primary);">实时拉取</div>
+          </div>
+          <div class="metric-card">
+            <h5>竞品门店 (1000m)</h5>
+            <strong>12 家</strong>
+          </div>
+          <div class="metric-card">
+            <h5>品牌密度等级</h5>
+            <strong>高</strong>
+            <div class="tag">Top 15%</div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h3 style="margin:0 0 12px;font-size:15px;">商业配套指数（预留）</h3>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <h5>写字楼数量</h5>
+            <strong>—</strong>
+            <div class="tag" style="background:rgba(148,163,184,0.24);color:var(--muted);">迭代中</div>
+          </div>
+          <div class="metric-card">
+            <h5>住宅小区数量</h5>
+            <strong>—</strong>
+            <div class="tag" style="background:rgba(148,163,184,0.24);color:var(--muted);">迭代中</div>
+          </div>
+          <div class="metric-card">
+            <h5>公共交通站点</h5>
+            <strong>—</strong>
+            <div class="tag" style="background:rgba(148,163,184,0.24);color:var(--muted);">迭代中</div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="panel-footer">
+      <div class="cache-indicator">
+        <span class="dot"></span>
+        缓存 TTL 剩余 22 小时
+      </div>
+      <div class="actions">
+        <button class="secondary">重新计算</button>
+        <button class="primary" style="height:36px;">导出 CSV</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="status-bar">
+    <strong>Gaode API</strong>
+    <span>本地数据库已启用 · 缓存策略运行中</span>
+  </div>
+</body>
+</html>

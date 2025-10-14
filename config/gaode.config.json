@@ -1,0 +1,14 @@
+{
+  "mapProvider": "gaode",
+  "apiKey": "27b677e7a72dc44f38571705fccbe423",
+  "baseUrl": "https://restapi.amap.com",
+  "services": {
+    "placeSearch": "/v3/place/text",
+    "placeAround": "/v3/place/around"
+  },
+  "timeoutMs": 600000,
+  "rateLimit": {
+    "requestsPerMinute": 50
+  },
+  "securityJsCode": ""
+}

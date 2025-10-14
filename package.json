@@ -1,0 +1,19 @@
+{
+  "name": "poi-location-scout",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "build": "npm --workspace backend run build && npm --workspace frontend run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "npm --workspace backend run test",
+    "test:frontend": "npm --workspace frontend run test",
+    "lint": "npm --workspace backend run lint && npm --workspace frontend run lint",
+    "format": "npm --workspace backend run format && npm --workspace frontend run format"
+  }
+}

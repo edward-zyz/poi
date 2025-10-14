@@ -1,0 +1,43 @@
+import express from "express";
+import cors from "cors";
+import { createServer } from "http";
+
+import { loadConfig } from "./settings/config.js";
+import { logger } from "./settings/logger.js";
+import { ensureMigrations } from "./storage/migrations.js";
+import { poiRouter } from "./routes/poiRoutes.js";
+import { createGaodeProxyRouter } from "./routes/gaodeProxy.js";
+
+const config = loadConfig();
+
+async function bootstrap(): Promise<void> {
+  await ensureMigrations(config.databasePath);
+
+  const app = express();
+
+  app.use(cors());
+  app.use("/_AMapService", createGaodeProxyRouter(config));
+  app.use(express.json({ limit: "2mb" }));
+
+  app.get("/api/status", (_req, res) => {
+    res.json({
+      service: "poi-location-scout-backend",
+      status: "ok",
+      version: config.version,
+      provider: "gaode",
+      cacheTtlHours: config.cacheTtlHours,
+    });
+  });
+
+  app.use("/api/poi", poiRouter(config));
+
+  const server = createServer(app);
+  server.listen(config.port, () => {
+    logger.info(`Backend listening on http://localhost:${config.port}`);
+  });
+}
+
+void bootstrap().catch((error) => {
+  logger.error({ err: error }, "Failed to start backend service");
+  process.exit(1);
+});
