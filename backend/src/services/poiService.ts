@@ -360,24 +360,73 @@ export class PoiService {
       });
     }
 
+    logger.info({ city, keywords: normalizedKeywords, count: normalizedKeywords.length }, "开始刷新POI缓存");
+    
     const results: Array<{ keyword: string; fetched: number }> = [];
+    let successCount = 0;
+    let errorCount = 0;
 
     for (const keyword of normalizedKeywords) {
       try {
+        logger.info({ city, keyword, progress: `${results.length + 1}/${normalizedKeywords.length}` }, "正在获取POI数据");
+        
         const pois = await this.provider.placeTextSearch({ keywords: keyword, city });
         const mapped = pois.map((poi) => mapPoiRecord(poi, keyword, city));
         this.repo.upsertPois(mapped);
+        
         results.push({ keyword, fetched: mapped.length });
-        logger.info({ city, keyword, fetched: mapped.length }, "POI cache refreshed");
+        successCount++;
+        
+        logger.info({ 
+          city, 
+          keyword, 
+          fetched: mapped.length, 
+          progress: `${results.length}/${normalizedKeywords.length}`,
+          successCount,
+          errorCount 
+        }, "POI数据获取成功");
+        
       } catch (error) {
-        throw toProviderError(error);
+        errorCount++;
+        logger.error({ 
+          city, 
+          keyword, 
+          error: error instanceof Error ? error.message : String(error),
+          progress: `${results.length + 1}/${normalizedKeywords.length}`,
+          successCount,
+          errorCount 
+        }, "POI数据获取失败");
+        
+        // 对于单个关键词失败，记录错误但继续处理其他关键词
+        results.push({ keyword, fetched: 0 });
+        
+        // 如果是网络或API密钥问题，应该立即失败
+        if (error instanceof Error && (
+          error.message.includes('API key') ||
+          error.message.includes('timeout') ||
+          error.message.includes('network')
+        )) {
+          throw toProviderError(error);
+        }
       }
     }
+
+    const totalFetched = results.reduce((sum, item) => sum + item.fetched, 0);
+    
+    logger.info({ 
+      city, 
+      keywords: normalizedKeywords,
+      totalKeywords: normalizedKeywords.length,
+      successCount,
+      errorCount,
+      totalFetched,
+      generatedAt: Math.floor(Date.now() / 1000)
+    }, "POI缓存刷新完成");
 
     return {
       city,
       keywords: normalizedKeywords,
-      totalFetched: results.reduce((sum, item) => sum + item.fetched, 0),
+      totalFetched,
       generatedAt: Math.floor(Date.now() / 1000),
       results,
     };

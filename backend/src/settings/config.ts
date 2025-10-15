@@ -1,5 +1,5 @@
-import fs from "node:fs";
 import path from "node:path";
+import fs from "node:fs";
 
 import { z } from "zod";
 
@@ -31,20 +31,39 @@ export interface AppConfig {
 
 const DEFAULT_CACHE_TTL_HOURS = 24;
 const FALLBACK_DB = path.resolve(process.cwd(), "storage", "poi-cache.sqlite");
+const DEFAULT_GAODE_BASE_URL = "https://restapi.amap.com";
+const DEFAULT_GAODE_PLACE_SEARCH = "/v3/place/text";
+const DEFAULT_GAODE_PLACE_AROUND = "/v3/place/around";
+const DEFAULT_GAODE_TIMEOUT_MS = 600000;
+const DEFAULT_GAODE_RATE_LIMIT = 50;
 
-function readGaodeConfig(): GaodeConfig {
-  const localConfigPath = process.env.GAODE_CONFIG_PATH
-    ? path.resolve(process.env.GAODE_CONFIG_PATH)
-    : path.resolve(process.cwd(), "config", "gaode.config.json");
+function toPositiveInteger(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : fallback;
+}
 
-  if (!fs.existsSync(localConfigPath)) {
-    throw new Error(`Missing Gaode config file at ${localConfigPath}`);
-  }
+function loadGaodeConfigFromEnv(): GaodeConfig {
+  const timeoutMs = toPositiveInteger(process.env.GAODE_TIMEOUT_MS, DEFAULT_GAODE_TIMEOUT_MS);
+  const rateLimit = toPositiveInteger(
+    process.env.GAODE_RATE_LIMIT,
+    DEFAULT_GAODE_RATE_LIMIT
+  );
 
-  const raw = fs.readFileSync(localConfigPath, "utf-8");
-  const parsed = JSON.parse(raw);
-
-  return rawConfigSchema.parse(parsed);
+  return rawConfigSchema.parse({
+    mapProvider: "gaode",
+    apiKey: process.env.GAODE_API_KEY ?? "",
+    baseUrl: process.env.GAODE_BASE_URL ?? DEFAULT_GAODE_BASE_URL,
+    services: {
+      placeSearch: process.env.GAODE_PLACE_SEARCH ?? DEFAULT_GAODE_PLACE_SEARCH,
+      placeAround: process.env.GAODE_PLACE_AROUND ?? DEFAULT_GAODE_PLACE_AROUND,
+    },
+    timeoutMs,
+    rateLimit: {
+      requestsPerMinute: rateLimit,
+    },
+    securityJsCode: process.env.GAODE_SECURITY_JS_CODE ?? "",
+  });
 }
 
 export function loadConfig(): AppConfig {
@@ -52,26 +71,17 @@ export function loadConfig(): AppConfig {
   const pkgRaw = fs.readFileSync(pkgJsonPath, "utf-8");
   const pkg = JSON.parse(pkgRaw) as { version?: string };
 
-  const gaodeConfig = readGaodeConfig();
-  const injectedKey =
-    process.env.GAODE_API_KEY && process.env.GAODE_API_KEY.trim().length > 0
-      ? process.env.GAODE_API_KEY.trim()
-      : gaodeConfig.apiKey;
+  const gaodeConfig = loadGaodeConfigFromEnv();
+  const injectedKey = gaodeConfig.apiKey.trim();
 
   if (!injectedKey) {
     // Warn but not throw to allow tests to inject mocks.
     console.warn(
-      "[config] No Gaode API key detected. Set GAODE_API_KEY env var or fill config/gaode.config.json."
+      "[config] No Gaode API key detected. Set GAODE_API_KEY environment variable before starting the service."
     );
   }
 
-  const securityJsCode =
-    process.env.GAODE_SECURITY_JS_CODE && process.env.GAODE_SECURITY_JS_CODE.trim().length > 0
-      ? process.env.GAODE_SECURITY_JS_CODE.trim()
-      : gaodeConfig.securityJsCode ?? "";
-
-  const timeoutMsEnv = process.env.GAODE_TIMEOUT_MS ? Number(process.env.GAODE_TIMEOUT_MS) : NaN;
-  const timeoutMs = Number.isFinite(timeoutMsEnv) && timeoutMsEnv > 0 ? timeoutMsEnv : gaodeConfig.timeoutMs;
+  const securityJsCode = gaodeConfig.securityJsCode?.trim() ?? "";
 
   const port = Number(process.env.PORT ?? 4000);
   const cacheTtlHours = Number(process.env.CACHE_TTL_HOURS ?? DEFAULT_CACHE_TTL_HOURS);
@@ -85,6 +95,6 @@ export function loadConfig(): AppConfig {
     cacheTtlHours,
     cacheTtlSeconds: cacheTtlHours * 3600,
     databasePath,
-    gaode: { ...gaodeConfig, apiKey: injectedKey, securityJsCode, timeoutMs },
+    gaode: { ...gaodeConfig, apiKey: injectedKey, securityJsCode },
   };
 }

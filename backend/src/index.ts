@@ -1,3 +1,4 @@
+import "./settings/loadEnv.js";
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
@@ -35,8 +36,15 @@ async function bootstrap(): Promise<void> {
 
   const server = createServer(app);
   const host = "0.0.0.0";
+  
+  // 增加服务器超时时间，支持长时间运行的缓存刷新任务
+  server.timeout = 300000; // 5分钟
+  server.keepAliveTimeout = 65000; // 65秒
+  server.headersTimeout = 66000; // 66秒
+  
   server.listen(config.port, host, () => {
     logger.info(`Backend listening on http://${host}:${config.port}`);
+    logger.info(`Server timeout configured: ${server.timeout}ms`);
   });
 }
 

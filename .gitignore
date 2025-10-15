@@ -3,3 +3,4 @@ backend/dist
 frontend/dist
 backend/storage/*.sqlite*
 frontend/.env.local
+backend/.env

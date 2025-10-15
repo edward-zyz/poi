@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 
 import {
   fetchCacheStats,
@@ -19,10 +19,20 @@ function formatTimestamp(timestamp?: number | null): string {
 
 const DEFAULT_KEYWORDS = baseBrands.join(", ");
 
+interface LoadingLog {
+  id: string;
+  timestamp: number;
+  message: string;
+  type: 'info' | 'success' | 'error';
+}
+
 export function CacheManager(): JSX.Element | null {
   const { adminVisible, closeAdmin, city } = usePoiStore();
 
   const [keywordInput, setKeywordInput] = useState<string>("");
+  const [loadingLogs, setLoadingLogs] = useState<LoadingLog[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (adminVisible) {
@@ -35,24 +45,76 @@ export function CacheManager(): JSX.Element | null {
     queryFn: () => fetchCacheStats(city),
     enabled: adminVisible,
     staleTime: 30_000,
-    onSuccess: (data) => {
-      if (typeof window !== "undefined") {
-        (window as any).lastCacheStats = data;
+  });
+
+  // 在数据更新时保存到全局
+  useEffect(() => {
+    if (statsQuery.data && typeof window !== "undefined") {
+      (window as any).lastCacheStats = statsQuery.data;
+    }
+  }, [statsQuery.data]);
+
+  const refreshMutation = useMutation<CacheRefreshResponse, Error, string[]>({
+    mutationFn: async (keywords) => {
+      // 创建新的 AbortController
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      
+      try {
+        setIsRefreshing(true);
+        addLog('开始刷新缓存...', 'info');
+        
+        const result = await refreshCache({ city, keywords });
+        
+        addLog(`缓存刷新完成，共获取 ${result.totalFetched} 条数据`, 'success');
+        
+        // 逐个显示关键词结果
+        result.results.forEach((item, index) => {
+          setTimeout(() => {
+            addLog(`"${item.keyword}" - 获取 ${item.fetched} 条`, 'success');
+          }, index * 100);
+        });
+        
+        return result;
+      } catch (error) {
+        addLog(`刷新失败：${error instanceof Error ? error.message : '未知错误'}`, 'error');
+        throw error;
+      } finally {
+        setIsRefreshing(false);
+        abortControllerRef.current = null;
       }
+    },
+    onSuccess: () => {
+      // 延迟刷新统计数据，等待日志显示完成
+      setTimeout(() => {
+        statsQuery.refetch();
+      }, 1000);
     },
   });
 
-  const refreshMutation = useMutation<CacheRefreshResponse, Error, string[]>({
-    mutationFn: (keywords) => refreshCache({ city, keywords }),
-    onSuccess: () => {
-      statsQuery.refetch();
-    },
-  });
+  const addLog = (message: string, type: LoadingLog['type']) => {
+    const newLog: LoadingLog = {
+      id: `${Date.now()}-${Math.random()}`,
+      timestamp: Date.now(),
+      message,
+      type
+    };
+    
+    setLoadingLogs(prev => [...prev, newLog]);
+    
+    // 限制日志数量，最多保留20条
+    setTimeout(() => {
+      setLoadingLogs(prev => prev.slice(-20));
+    }, 100);
+  };
+
+  const clearLogs = () => {
+    setLoadingLogs([]);
+  };
 
   const stats = statsQuery.data?.stats ?? [];
   const totalPois = statsQuery.data?.total ?? 0;
 
-  const isRefreshing = refreshMutation.isLoading;
   const isFetchingStats = statsQuery.isLoading || statsQuery.isFetching;
 
   const handleUseDefault = () => {
@@ -65,8 +127,42 @@ export function CacheManager(): JSX.Element | null {
       alert("请输入至少一个关键词");
       return;
     }
+    
+    if (isRefreshing) {
+      alert("正在刷新中，请等待完成");
+      return;
+    }
+    
+    clearLogs();
     refreshMutation.mutate(keywords);
   };
+
+  // 组件卸载时取消请求
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // 监听页面关闭事件
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isRefreshing) {
+        e.preventDefault();
+        const message = '数据正在刷新中，确定要离开吗？';
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isRefreshing]);
 
   const lastRefreshMessage = useMemo(() => {
     if (refreshMutation.data) {
@@ -76,6 +172,21 @@ export function CacheManager(): JSX.Element | null {
     }
     return "";
   }, [refreshMutation.data]);
+
+  // 监听 visibilitychange 事件，页面切换时保持状态
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isRefreshing) {
+        // 页面隐藏时，在控制台记录状态
+        console.log('页面已隐藏，但缓存刷新仍在后台进行中...');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isRefreshing]);
 
   if (!adminVisible) {
     return null;
@@ -108,13 +219,53 @@ export function CacheManager(): JSX.Element | null {
               <button type="button" onClick={handleUseDefault} className="secondary">
                 使用默认关键词
               </button>
-              <button type="button" onClick={handleRefresh} disabled={isRefreshing}>
-                {isRefreshing ? "刷新中..." : "刷新缓存"}
+              <button 
+                type="button" 
+                onClick={handleRefresh} 
+                disabled={isRefreshing || refreshMutation.isPending}
+                className={isRefreshing || refreshMutation.isPending ? 'loading' : ''}
+              >
+                {isRefreshing || refreshMutation.isPending ? (
+                  <>
+                    <span className="loading-spinner"></span>
+                    刷新中...
+                  </>
+                ) : "刷新缓存"}
               </button>
             </div>
             {lastRefreshMessage && <p className="hint">{lastRefreshMessage}</p>}
             {refreshMutation.isError && (
               <p className="error">刷新失败：{refreshMutation.error?.message}</p>
+            )}
+            
+            {/* 加载日志区域 */}
+            {loadingLogs.length > 0 && (
+              <div className="loading-logs">
+                <div className="logs-header">
+                  <span>刷新进度</span>
+                  <button 
+                    type="button" 
+                    onClick={clearLogs}
+                    className="clear-logs-btn"
+                    disabled={isRefreshing}
+                  >
+                    清空
+                  </button>
+                </div>
+                <div className="logs-container">
+                  {loadingLogs.map((log) => (
+                    <div 
+                      key={log.id} 
+                      className={`log-entry log-${log.type}`}
+                    >
+                      <span className="log-time">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                      <span className="log-message">{log.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </section>
 

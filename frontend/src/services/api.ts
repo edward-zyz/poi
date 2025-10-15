@@ -94,7 +94,7 @@ export interface PoiSummary {
 
 const client = axios.create({
   baseURL: "/api",
-  timeout: 10000,
+  timeout: 120000, // 增加到2分钟，给数据采集更长时间
 });
 
 export interface DensityPayload {

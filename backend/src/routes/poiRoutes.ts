@@ -77,6 +77,11 @@ export function poiRouter(config: AppConfig): Router {
   router.post("/cache/refresh", async (req, res) => {
     try {
       const payload = cacheRefreshSchema.parse(req.body);
+      
+      // 设置响应头以支持长时间运行的请求
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('Cache-Control', 'no-cache');
+      
       const result = await service.refreshPoiCache(payload.city, payload.keywords);
       res.json(result);
     } catch (error) {

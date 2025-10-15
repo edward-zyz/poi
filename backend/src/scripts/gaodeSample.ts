@@ -31,7 +31,7 @@ async function main(): Promise<void> {
   const config = loadConfig();
 
   if (!config.gaode.apiKey) {
-    throw new Error("缺少高德 Web 服务 API key，请先在 config/gaode.config.json 或 GAODE_API_KEY 中配置。");
+    throw new Error("缺少高德 Web 服务 API key，请先设置 GAODE_API_KEY 环境变量。");
   }
 
   const provider = new GaodeProvider({ config: config.gaode });
