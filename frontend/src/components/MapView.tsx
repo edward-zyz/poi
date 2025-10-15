@@ -863,39 +863,59 @@ export function MapView({ onPOIClick, onMapLongPress }: MapViewProps): JSX.Eleme
       <div className="map-container" ref={mapContainerRef}>
         {!AMap && <div className="map-placeholder" />}
       </div>
-      <div className="map-legend">
-        <div className="legend-section">
-          <div className="legend-items-row">
-            <div className="legend-item">
-              <span className="legend-swatch legend-main" /> 主品牌 POI
-            </div>
-            <div className="legend-item">
-              <span className="legend-swatch legend-competitor" /> 竞品 POI
-            </div>
-          </div>
-        </div>
-        <div className="legend-section">
-          <div className="legend-items-row">
-            <div className="legend-item">
-              <span className="legend-swatch" style={{ backgroundColor: "#f59e0b" }} /> 待考察
-            </div>
-            <div className="legend-item">
-              <span className="legend-swatch" style={{ backgroundColor: "#8b5cf6" }} /> 重点跟进
-            </div>
-            <div className="legend-item">
-              <span className="legend-swatch" style={{ backgroundColor: "#94a3b8" }} /> 淘汰
+      {isMobile ? (
+        // 移动端简化图例 - 只显示主品牌和竞品POI，放在底部
+        <div className="map-legend mobile-legend">
+          <div className="legend-section">
+            <div className="legend-items-row">
+              <div className="legend-item">
+                <span className="legend-swatch legend-main" /> 主品牌
+              </div>
+              <div className="legend-item">
+                <span className="legend-swatch legend-competitor" /> 竞品
+              </div>
             </div>
           </div>
         </div>
-        <div className="legend-section">
-          <div className="legend-gradient" />
-          <span className="legend-label">热力强度（低 → 高）</span>
+      ) : (
+        // 桌面端完整图例
+        <div className="map-legend">
+          <div className="legend-section">
+            <div className="legend-items-row">
+              <div className="legend-item">
+                <span className="legend-swatch legend-main" /> 主品牌 POI
+              </div>
+              <div className="legend-item">
+                <span className="legend-swatch legend-competitor" /> 竞品 POI
+              </div>
+            </div>
+          </div>
+          <div className="legend-section">
+            <div className="legend-items-row">
+              <div className="legend-item">
+                <span className="legend-swatch" style={{ backgroundColor: "#f59e0b" }} /> 待考察
+              </div>
+              <div className="legend-item">
+                <span className="legend-swatch" style={{ backgroundColor: "#8b5cf6" }} /> 重点跟进
+              </div>
+              <div className="legend-item">
+                <span className="legend-swatch" style={{ backgroundColor: "#94a3b8" }} /> 淘汰
+              </div>
+            </div>
+          </div>
+          <div className="legend-section">
+            <div className="legend-gradient" />
+            <span className="legend-label">热力强度（低 → 高）</span>
+          </div>
         </div>
-      </div>
-      <div className="status-bar">
-        <strong>Gaode API</strong>
-        <span>{error ? error.message : statusText}</span>
-      </div>
+      )}
+      {/* Status Bar - 隐藏移动端显示 */}
+      {!isMobile && (
+        <div className="status-bar">
+          <strong>Gaode API</strong>
+          <span>{error ? error.message : statusText}</span>
+        </div>
+      )}
     </>
   );
 }

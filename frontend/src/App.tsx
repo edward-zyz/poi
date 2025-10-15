@@ -2,8 +2,7 @@ import { useState } from "react";
 import { LeftPanel } from "./components/LeftPanel";
 import { RightPanel } from "./components/RightPanel";
 import { CacheManager } from "./components/CacheManager";
-import { BottomTabBar } from "./components/BottomTabBar";
-import { FloatingActionButton } from "./components/FloatingActionButton";
+import { FloatingActionButtons } from "./components/FloatingActionButtons";
 import { SlidePanel } from "./components/SlidePanel";
 import { PlanningSlidePanel } from "./components/PlanningSlidePanel";
 import { AnalysisSlidePanel } from "./components/AnalysisSlidePanel";
@@ -19,7 +18,6 @@ function AppContent(): JSX.Element {
   useInitializeApp();
   const isMobile = useIsMobile();
   
-  const [showSearch, setShowSearch] = useState(false);
   const [selectedPOI, setSelectedPOI] = useState<any>(null);
   const [showPOIDetail, setShowPOIDetail] = useState(false);
   
@@ -33,14 +31,6 @@ function AppContent(): JSX.Element {
     setAwaitingPlanningMapClick,
   } = usePoiStore();
 
-  const handleAddPoint = () => {
-    if (adminVisible) {
-      closeAdmin();
-    }
-    setAwaitingPlanningMapClick(true);
-    toggleLeft(); // Open planning panel
-  };
-
   const handlePOIClick = (poi: any, position: { lng: number; lat: number }) => {
     setSelectedPOI({ ...poi, position });
     setShowPOIDetail(true);
@@ -50,7 +40,6 @@ function AppContent(): JSX.Element {
     <div style={{ height: "100%", width: "100%" }}>
       <MapView 
         onPOIClick={isMobile ? handlePOIClick : undefined}
-        onMapLongPress={isMobile ? handleAddPoint : undefined}
       />
       
       {/* Desktop Panels */}
@@ -101,15 +90,8 @@ function AppContent(): JSX.Element {
             </SlidePanel>
           )}
           
-          {/* Bottom Navigation */}
-          <BottomTabBar />
-          
-          {/* Floating Action Button */}
-          <FloatingActionButton 
-            onAddPoint={handleAddPoint}
-            onToggleSearch={() => setShowSearch(!showSearch)}
-            showSearch={showSearch}
-          />
+          {/* Floating Action Buttons for Settings and Planning */}
+          <FloatingActionButtons />
           
           {/* POI Detail Card */}
           {showPOIDetail && selectedPOI && (

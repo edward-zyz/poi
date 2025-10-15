@@ -1315,7 +1315,31 @@ button.loading .loading-spinner {
   }
 
   /* Mobile map legend */
-  .map-legend {
+  .map-legend.mobile-legend {
+    position: absolute;
+    top: auto;
+    bottom: 20px; /* 在浮动按钮上方留出空间 */
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 200px;
+    min-width: unset;
+    padding: 6px 12px;
+    border-radius: 20px;
+    flex-direction: row;
+    gap: 16px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    font-size: 11px;
+    line-height: 1.2;
+    z-index: 10;
+    white-space: nowrap;
+  }
+
+  /* 保留原有的复杂图例样式以防其他地方使用 */
+  .map-legend:not(.mobile-legend) {
     position: absolute;
     top: 12px;
     bottom: auto;
@@ -1337,26 +1361,63 @@ button.loading .loading-spinner {
     z-index: 15;
   }
 
-  .legend-section {
+  /* 移动端简化图例样式 */
+  .map-legend.mobile-legend .legend-section {
+    flex-direction: row;
+    gap: 16px;
+    width: auto;
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .map-legend.mobile-legend .legend-items-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: nowrap;
+  }
+
+  .map-legend.mobile-legend .legend-item {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    line-height: 1.2;
+    opacity: 1;
+    color: #ffffff;
+  }
+
+  .map-legend.mobile-legend .legend-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
+  }
+
+  /* 原有复杂图例样式 */
+  .map-legend:not(.mobile-legend) .legend-section {
     flex-direction: column;
     gap: 4px;
     width: 100%;
   }
 
-  .legend-section:not(:last-child) {
+  .map-legend:not(.mobile-legend) .legend-section:not(:last-child) {
     border-bottom: 1px solid rgba(0, 0, 0, 0.04);
     padding-bottom: 4px;
     margin-bottom: 0;
   }
 
-  .legend-items-row {
+  .map-legend:not(.mobile-legend) .legend-items-row {
     display: flex;
     justify-content: space-between;
     gap: 8px;
     flex-wrap: wrap;
   }
 
-  .legend-item {
+  .map-legend:not(.mobile-legend) .legend-item {
     font-size: 9px;
     display: flex;
     align-items: center;
@@ -1366,7 +1427,7 @@ button.loading .loading-spinner {
     opacity: 0.85;
   }
 
-  .legend-swatch {
+  .map-legend:not(.mobile-legend) .legend-swatch {
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -1614,6 +1675,15 @@ button.loading .loading-spinner {
   flex-direction: column;
 }
 
+/* Mobile optimized slide panels */
+@media (max-width: 768px) {
+  .slide-panel {
+    width: 85vw;
+    max-width: 380px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  }
+}
+
 .slide-panel-left {
   left: 0;
   border-right: 1px solid rgba(148, 163, 184, 0.2);
@@ -1668,19 +1738,7 @@ button.loading .loading-spinner {
   overscroll-behavior: contain;
 }
 
-.slide-panel-handle {
-  display: flex;
-  justify-content: center;
-  padding: 8px 0;
-  flex-shrink: 0;
-}
-
-.drag-indicator {
-  width: 40px;
-  height: 4px;
-  background: rgba(148, 163, 184, 0.4);
-  border-radius: 2px;
-}
+/* Drag handle styles removed - mobile panels now only use button interaction */
 
 /* Panel Sections */
 .panel-section {
@@ -1700,6 +1758,34 @@ button.loading .loading-spinner {
   font-weight: 600;
   color: #1f2937;
   font-size: 16px;
+}
+
+/* Mobile optimized panel sections */
+@media (max-width: 768px) {
+  .panel-section {
+    padding: 12px 16px;
+    margin-bottom: 0;
+  }
+  
+  .section-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  }
+  
+  .slide-panel-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  }
+  
+  .slide-panel-header h2 {
+    font-size: 16px;
+  }
+  
+  .slide-panel-body {
+    padding: 0;
+  }
 }
 
 .section-count {
@@ -2210,6 +2296,69 @@ button.loading .loading-spinner {
 }
 
   /* Map legend and status bar already properly positioned for mobile */
+
+  /* Floating Action Buttons */
+  .fab-button {
+    position: fixed;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    z-index: 25;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+  }
+
+  .fab-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+  }
+
+  .fab-button:active {
+    transform: scale(0.95);
+  }
+
+  .fab-button.fab-settings {
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #64748b, #475569);
+  }
+
+  .fab-button.fab-planning {
+    bottom: 76px;
+    right: 20px;
+    background: linear-gradient(135deg, #10b981, #059669);
+  }
+
+  .fab-button.active {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+  }
+
+  .fab-button.active:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5);
+  }
+
+  .fab-button svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+    transition: transform 0.2s ease;
+  }
+
+  /* Adjust existing floating action button position */
+  .fab-container {
+    bottom: 140px !important; /* Make room for new buttons */
+  }
 
   /* Hide panel footers on mobile to avoid overlap */
   .panel-footer {

@@ -63,13 +63,6 @@ export function SlidePanel({
         <div className="slide-panel-content">
           {children}
         </div>
-        
-        {/* Mobile drag handle */}
-        {isMobile && (
-          <div className="slide-panel-handle">
-            <div className="drag-indicator" />
-          </div>
-        )}
       </div>
     </>
   );
