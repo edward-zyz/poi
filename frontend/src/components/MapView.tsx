@@ -6,6 +6,8 @@ import { usePoiStore } from "../store/usePoiStore";
 import { parseKeywords } from "../utils/keywords";
 import { useAmapLoader } from "../hooks/useAmapLoader";
 import { getPlanningStatusMeta } from "../data/planningOptions";
+import { useIsMobile } from "../hooks/useIsMobile";
+import type { PoiSummary } from "../services/api";
 
 const CITY_CENTERS: Record<string, [number, number]> = {
   上海市: [121.4737, 31.2304],
@@ -17,7 +19,12 @@ const CITY_CENTERS: Record<string, [number, number]> = {
 };
 
 const DEFAULT_CENTER: [number, number] = [116.4074, 39.9042];
-export function MapView(): JSX.Element {
+interface MapViewProps {
+  onPOIClick?: (poi: PoiSummary | PlanningPoint, position: { lng: number; lat: number }) => void;
+  onMapLongPress?: (position: { lng: number; lat: number }) => void;
+}
+
+export function MapView({ onPOIClick, onMapLongPress }: MapViewProps): JSX.Element {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const overlaysRef = useRef({
@@ -47,6 +54,7 @@ export function MapView(): JSX.Element {
   const renderPlanningPointsRef = useRef<typeof renderPlanningPoints>();
 
   const { AMap, error } = useAmapLoader();
+  const isMobile = useIsMobile();
   const {
     city,
     competitorInput,
@@ -608,6 +616,123 @@ export function MapView(): JSX.Element {
     };
   }, [AMap]);
 
+  // Mobile touch interactions
+  useEffect(() => {
+    if (!isMobile || !mapInstanceRef.current) return;
+    
+    const setupMobileInteractions = () => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      
+      let longPressTimer: any = null;
+      let touchStartTime = 0;
+      const LONG_PRESS_DURATION = 500; // 500ms for long press
+      
+      const handleTouchStart = (event: any) => {
+        touchStartTime = Date.now();
+        
+        // Clear any existing timer
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+        }
+        
+        // Set new timer for long press
+        longPressTimer = setTimeout(() => {
+          if (onMapLongPress && event.lnglat) {
+            const point = { lng: event.lnglat.getLng(), lat: event.lnglat.getLat() };
+            onMapLongPress(point);
+          }
+        }, LONG_PRESS_DURATION);
+      };
+      
+      const handleTouchEnd = (event: any) => {
+        const touchDuration = Date.now() - touchStartTime;
+        
+        // Clear long press timer
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+        
+        // If it was a short tap, handle as click
+        if (touchDuration < LONG_PRESS_DURATION && onPOIClick) {
+          // Check if there's a POI at the clicked position
+          const lnglat = event.lnglat;
+          if (lnglat) {
+            const point = { lng: lnglat.getLng(), lat: lnglat.getLat() };
+            
+            // Find nearby POIs (within a small radius for mobile touch)
+            const touchRadius = 50; // 50 meters
+            const nearbyMainPois = densityResult?.mainBrandPois?.filter(poi => {
+              const distance = calculateDistance(point.lat, point.lng, poi.latitude, poi.longitude);
+              return distance <= touchRadius;
+            }) || [];
+            
+            const nearbyCompetitorPois = densityResult?.competitorPois?.filter(poi => {
+              const distance = calculateDistance(point.lat, point.lng, poi.latitude, poi.longitude);
+              return distance <= touchRadius;
+            }) || [];
+            
+            const allNearbyPois = [...nearbyMainPois, ...nearbyCompetitorPois];
+            
+            if (allNearbyPois.length > 0) {
+              // Take the closest POI
+              const closestPoi = allNearbyPois.reduce((closest, poi) => {
+                const closestDist = calculateDistance(point.lat, point.lng, closest.latitude, closest.longitude);
+                const poiDist = calculateDistance(point.lat, point.lng, poi.latitude, poi.longitude);
+                return poiDist < closestDist ? poi : closest;
+              });
+              
+              onPOIClick(closestPoi, point);
+            }
+          }
+        }
+      };
+      
+      const handleTouchMove = () => {
+        // Clear long press timer if user moves finger
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      };
+      
+      // Add mobile touch event listeners
+      map.on('touchstart', handleTouchStart);
+      map.on('touchend', handleTouchEnd);
+      map.on('touchmove', handleTouchMove);
+      
+      // Store cleanup function
+      return () => {
+        map.off('touchstart', handleTouchStart);
+        map.off('touchend', handleTouchEnd);
+        map.off('touchmove', handleTouchMove);
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+        }
+      };
+    };
+    
+    const cleanup = setupMobileInteractions();
+    return cleanup;
+  }, [isMobile, densityResult]);
+  
+  // Helper function to calculate distance between two points
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    
+    return R * c; // Distance in meters
+  };
+
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -740,22 +865,26 @@ export function MapView(): JSX.Element {
       </div>
       <div className="map-legend">
         <div className="legend-section">
-          <div className="legend-item">
-            <span className="legend-swatch legend-main" /> 主品牌 POI
-          </div>
-          <div className="legend-item">
-            <span className="legend-swatch legend-competitor" /> 竞品 POI
+          <div className="legend-items-row">
+            <div className="legend-item">
+              <span className="legend-swatch legend-main" /> 主品牌 POI
+            </div>
+            <div className="legend-item">
+              <span className="legend-swatch legend-competitor" /> 竞品 POI
+            </div>
           </div>
         </div>
         <div className="legend-section">
-          <div className="legend-item">
-            <span className="legend-swatch" style={{ backgroundColor: "#f59e0b" }} /> 待考察点位
-          </div>
-          <div className="legend-item">
-            <span className="legend-swatch" style={{ backgroundColor: "#8b5cf6" }} /> 重点跟进点位
-          </div>
-          <div className="legend-item">
-            <span className="legend-swatch" style={{ backgroundColor: "#94a3b8" }} /> 淘汰点位
+          <div className="legend-items-row">
+            <div className="legend-item">
+              <span className="legend-swatch" style={{ backgroundColor: "#f59e0b" }} /> 待考察
+            </div>
+            <div className="legend-item">
+              <span className="legend-swatch" style={{ backgroundColor: "#8b5cf6" }} /> 重点跟进
+            </div>
+            <div className="legend-item">
+              <span className="legend-swatch" style={{ backgroundColor: "#94a3b8" }} /> 淘汰
+            </div>
           </div>
         </div>
         <div className="legend-section">

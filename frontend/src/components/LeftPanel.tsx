@@ -125,11 +125,15 @@ export function LeftPanel(): JSX.Element {
     setCompetitorDisplayMode(mode);
   };
 
+  const handleHeaderClick = () => {
+    toggleLeft();
+  };
+
   return (
     <aside className={`panel panel-top left ${leftCollapsed ? "collapsed" : ""}`}>
-      <div className="panel-header">
+      <div className="panel-header" onClick={handleHeaderClick}>
         <h2>门店选址辅助工具</h2>
-        <button type="button" onClick={toggleLeft}>
+        <button type="button" onClick={(e) => { e.stopPropagation(); toggleLeft(); }}>
           {leftCollapsed ? "▼" : "▲"}
         </button>
       </div>

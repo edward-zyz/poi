@@ -71,11 +71,15 @@ export function RightPanel(): JSX.Element {
     return "3km";
   }, [selectedAnalysis]);
 
+  const handleHeaderClick = () => {
+    toggleRight();
+  };
+
   return (
     <aside className={`panel panel-top right ${rightCollapsed ? "collapsed" : ""}`}>
-      <div className="panel-header">
+      <div className="panel-header" onClick={handleHeaderClick}>
         <h2>候选点规划与分析</h2>
-        <button type="button" onClick={toggleRight}>
+        <button type="button" onClick={(e) => { e.stopPropagation(); toggleRight(); }}>
           {rightCollapsed ? "▼" : "▲"}
         </button>
       </div>
