@@ -43,7 +43,7 @@
   align-items: flex-start;
 }
 
-.topbar .control {
+.control {
   display: flex;
   flex-direction: column;
   font-size: 12px;
@@ -51,8 +51,8 @@
   gap: 6px;
 }
 
-.topbar .control select,
-.topbar .control input {
+.control select,
+.control input {
   min-width: 200px;
   height: 38px;
   padding: 0 12px;
@@ -63,13 +63,13 @@
   font-size: 14px;
 }
 
-.topbar .control .suggestions {
+.control .suggestions {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.topbar .control .suggestions button {
+.control .suggestions button {
   border: none;
   background: rgba(37, 99, 235, 0.1);
   color: #2563eb;
@@ -79,9 +79,16 @@
   font-size: 12px;
 }
 
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .primary {
   height: 38px;
   padding: 0 20px;
+  min-width: 100px;
   border-radius: 10px;
   background: linear-gradient(135deg, #2563eb, #3b82f6);
   color: white;
@@ -89,6 +96,7 @@
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+  white-space: nowrap;
 }
 
 .primary:disabled {
@@ -260,6 +268,13 @@
   background: rgba(241, 245, 249, 0.8);
   color: #64748b;
   font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radius-chip:hover {
+  background: rgba(241, 245, 249, 1);
+  border-color: rgba(148, 163, 184, 0.6);
 }
 
 .radius-chip.active {
@@ -267,6 +282,11 @@
   color: #2563eb;
   background: rgba(37, 99, 235, 0.12);
   font-weight: 600;
+}
+
+.radius-chip.active:hover {
+  background: rgba(37, 99, 235, 0.16);
+  border-color: #1d4ed8;
 }
 
 .poi-card {
@@ -367,12 +387,14 @@
 .secondary {
   height: 36px;
   padding: 0 18px;
+  min-width: 90px;
   border-radius: 10px;
   border: 1px solid rgba(37, 99, 235, 0.4);
   background: transparent;
   color: #2563eb;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .status-bar {
@@ -455,14 +477,13 @@
 }
 
 .poi-toast {
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.92);
-  color: #f8fafc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
   font-size: 12px;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.3);
-  max-width: 220px;
-  line-height: 1.4;
+  max-width: 200px;
+  line-height: 1.3;
 }
 
 .cache-overlay {
@@ -700,13 +721,97 @@
   color: #64748b;
 }
 
+.planning-intro {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 12px;
+}
+
+.planning-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.planning-entry-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.planning-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.planning-sort button {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.planning-sort button.active {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.planning-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.planning-filter-bar input {
+  flex: 1;
+  min-width: 180px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.planning-status-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.planning-status-filter button {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.planning-status-filter button.active {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+}
+
 .planning-form__fields {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.planning-form__fields label {
+.planning-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -714,38 +819,74 @@
   color: #64748b;
 }
 
-.planning-form__fields input {
+.planning-field input,
+.planning-field select,
+.planning-field textarea {
   border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.4);
   padding: 6px 10px;
   font-size: 13px;
+  background: rgba(255, 255, 255, 0.95);
 }
 
-.planning-color-picker {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #64748b;
+.planning-field textarea {
+  min-height: 72px;
+  resize: vertical;
 }
 
-.planning-color-picker div {
+.planning-field__hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.planning-field__counter {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: right;
+}
+
+.planning-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.planning-status-select {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.planning-color {
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.8);
+.planning-status-option {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.planning-color.selected {
-  border-color: #0f172a;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+.planning-status-option.selected {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.planning-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.planning-status-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 6px 0 0;
 }
 
 .planning-coords {
@@ -758,6 +899,12 @@
 .planning-coords strong {
   color: #0f172a;
   font-weight: 600;
+}
+
+.planning-autosave {
+  margin: 0;
+  font-size: 12px;
+  color: #16a34a;
 }
 
 .planning-error {
@@ -782,36 +929,74 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 12px;
-  align-items: center;
-  padding: 10px 12px;
+  align-items: flex-start;
+  padding: 12px;
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.3);
   background: rgba(255, 255, 255, 0.95);
   cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.planning-item:hover {
+  border-color: rgba(37, 99, 235, 0.4);
 }
 
 .planning-item.active {
   border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
-.planning-item__color {
-  width: 12px;
-  height: 40px;
-  border-radius: 8px;
+.planning-item__checkbox input {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
 }
 
-.planning-item__content {
+.planning-item__body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   font-size: 12px;
   color: #64748b;
 }
 
-.planning-item__content strong {
+.planning-item__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planning-item__header strong {
   font-size: 13px;
   color: #0f172a;
+}
+
+.planning-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #fff;
+}
+
+.planning-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.planning-item__notes {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  padding: 6px 8px;
 }
 
 .planning-item__actions {
@@ -823,9 +1008,14 @@
   border: none;
   background: rgba(148, 163, 184, 0.2);
   border-radius: 8px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   font-size: 12px;
+  color: #475569;
   cursor: pointer;
+}
+.planning-item__actions button:hover {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
 }
 
 .link-button {

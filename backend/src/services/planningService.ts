@@ -13,8 +13,22 @@ import { logger } from "../settings/logger.js";
 
 const DEFAULT_RADIUS_METERS = 1000;
 const DEFAULT_COLOR = "#22c55e";
+const DEFAULT_COLOR_TOKEN = "pending";
 const MIN_RADIUS_METERS = 100;
-const MAX_RADIUS_METERS = 5000;
+const MAX_RADIUS_METERS = 2000;
+const MIN_PRIORITY_RANK = 1;
+const MAX_PRIORITY_RANK = 999;
+const DEFAULT_PRIORITY_RANK = 100;
+const NOTES_MAX_LENGTH = 2000;
+
+const STATUS_COLOR_MAP: Record<string, string> = {
+  pending: "#22c55e", // 待考察
+  priority: "#2563eb", // 重点跟进
+  dropped: "#94a3b8", // 淘汰
+};
+
+const VALID_STATUS_SET = new Set(Object.keys(STATUS_COLOR_MAP));
+const VALID_SOURCE_TYPES = new Set(["poi", "manual"]);
 
 export interface CreatePlanningPointPayload {
   city: string;
@@ -23,6 +37,13 @@ export interface CreatePlanningPointPayload {
   latitude: number;
   radiusMeters?: number;
   color?: string;
+  colorToken?: string;
+  status?: string;
+  priorityRank?: number;
+  notes?: string;
+  sourceType?: string;
+  sourcePoiId?: string | null;
+  updatedBy?: string | null;
 }
 
 export interface UpdatePlanningPointPayload {
@@ -32,6 +53,13 @@ export interface UpdatePlanningPointPayload {
   latitude?: number;
   radiusMeters?: number;
   color?: string;
+  colorToken?: string;
+  status?: string;
+  priorityRank?: number;
+  notes?: string;
+  sourceType?: string;
+  sourcePoiId?: string | null;
+  updatedBy?: string | null;
 }
 
 export interface PlanningPoiSuggestion {
@@ -74,7 +102,7 @@ export class PlanningService {
     if (!existing) {
       throw new AppError("规划点不存在", { status: 404, code: "planning_point_not_found" });
     }
-    const updates = this.normalizeUpdatePayload(payload);
+    const updates = this.normalizeUpdatePayload(payload, existing);
     if (Object.keys(updates).length === 0) {
       return existing;
     }
@@ -130,7 +158,14 @@ export class PlanningService {
     }
 
     const radiusMeters = clampRadius(payload.radiusMeters);
-    const color = normalizeColor(payload.color);
+    const status = normalizeStatus(payload.status);
+    const colorToken = normalizeColorToken(payload.colorToken ?? status);
+    const color = resolveColor(colorToken, payload.color);
+    const priorityRank = clampPriorityRank(payload.priorityRank);
+    const notes = sanitizeNotes(payload.notes);
+    const sourceType = normalizeSourceType(payload.sourceType);
+    const sourcePoiId = sanitizeSourcePoiId(payload.sourcePoiId, sourceType);
+    const updatedBy = sanitizeUpdatedBy(payload.updatedBy);
 
     return {
       id: randomUUID(),
@@ -140,10 +175,20 @@ export class PlanningService {
       latitude: sanitizeCoordinate(payload.latitude),
       radiusMeters,
       color,
+      colorToken,
+      status,
+      priorityRank,
+      notes,
+      sourceType,
+      sourcePoiId,
+      updatedBy,
     };
   }
 
-  private normalizeUpdatePayload(payload: UpdatePlanningPointPayload): PlanningPointUpdateInput {
+  private normalizeUpdatePayload(
+    payload: UpdatePlanningPointPayload,
+    existing: PlanningPointRecord
+  ): PlanningPointUpdateInput {
     const updates: PlanningPointUpdateInput = {};
     if (payload.city !== undefined) {
       const city = payload.city.trim();
@@ -172,8 +217,45 @@ export class PlanningService {
       updates.radiusMeters = clampRadius(payload.radiusMeters);
     }
 
-    if (payload.color !== undefined) {
-      updates.color = normalizeColor(payload.color);
+    const hasStatusChange = payload.status !== undefined;
+    const hasColorTokenChange = payload.colorToken !== undefined;
+    const hasColorChange = payload.color !== undefined;
+    if (hasStatusChange || hasColorTokenChange || hasColorChange) {
+      const nextStatus = hasStatusChange ? normalizeStatus(payload.status) : existing.status;
+      const nextColorToken = normalizeColorToken(
+        hasColorTokenChange ? payload.colorToken : nextStatus ?? existing.colorToken
+      );
+      const shouldKeepExistingColor = !hasStatusChange && !hasColorTokenChange && !hasColorChange;
+      const explicitColor = hasColorChange ? payload.color : undefined;
+      const nextColor = resolveColor(
+        nextColorToken,
+        shouldKeepExistingColor ? existing.color : explicitColor
+      );
+      updates.status = nextStatus;
+      updates.colorToken = nextColorToken;
+      updates.color = nextColor;
+    }
+
+    if (payload.priorityRank !== undefined) {
+      updates.priorityRank = clampPriorityRank(payload.priorityRank);
+    }
+
+    if (payload.notes !== undefined) {
+      updates.notes = sanitizeNotes(payload.notes);
+    }
+
+    if (payload.sourceType !== undefined) {
+      const sourceType = normalizeSourceType(payload.sourceType);
+      updates.sourceType = sourceType;
+      if (payload.sourcePoiId !== undefined || sourceType !== existing.sourceType) {
+        updates.sourcePoiId = sanitizeSourcePoiId(payload.sourcePoiId, sourceType);
+      }
+    } else if (payload.sourcePoiId !== undefined) {
+      updates.sourcePoiId = sanitizeSourcePoiId(payload.sourcePoiId, existing.sourceType);
+    }
+
+    if (payload.updatedBy !== undefined) {
+      updates.updatedBy = sanitizeUpdatedBy(payload.updatedBy);
     }
 
     return updates;
@@ -206,11 +288,104 @@ function normalizeColor(color: string | undefined): string {
   return fallback;
 }
 
+function normalizeColorToken(colorToken: string | undefined): string {
+  if (!colorToken) {
+    return DEFAULT_COLOR_TOKEN;
+  }
+  const normalized = colorToken.trim().toLowerCase();
+  if (normalized.length === 0) {
+    return DEFAULT_COLOR_TOKEN;
+  }
+  if (!STATUS_COLOR_MAP[normalized]) {
+    return DEFAULT_COLOR_TOKEN;
+  }
+  return normalized;
+}
+
+function resolveColor(colorToken: string, customColor?: string): string {
+  if (customColor) {
+    return normalizeColor(customColor);
+  }
+  return STATUS_COLOR_MAP[colorToken] ?? DEFAULT_COLOR;
+}
+
 function shorten(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
     return value;
   }
   return value.slice(0, maxLength);
+}
+
+function normalizeStatus(status: string | undefined): string {
+  if (!status) {
+    return "pending";
+  }
+  const normalized = status.trim().toLowerCase();
+  if (!VALID_STATUS_SET.has(normalized)) {
+    return "pending";
+  }
+  return normalized;
+}
+
+function clampPriorityRank(value: number | undefined): number {
+  const numeric = Number(value ?? DEFAULT_PRIORITY_RANK);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_PRIORITY_RANK;
+  }
+  return Math.min(Math.max(Math.round(numeric), MIN_PRIORITY_RANK), MAX_PRIORITY_RANK);
+}
+
+function sanitizeNotes(value: string | undefined): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return "";
+  }
+  if (trimmed.length > NOTES_MAX_LENGTH) {
+    return trimmed.slice(0, NOTES_MAX_LENGTH);
+  }
+  return trimmed;
+}
+
+function normalizeSourceType(sourceType: string | undefined): string {
+  if (!sourceType) {
+    return "manual";
+  }
+  const normalized = sourceType.trim().toLowerCase();
+  if (VALID_SOURCE_TYPES.has(normalized)) {
+    return normalized;
+  }
+  return "manual";
+}
+
+function sanitizeSourcePoiId(
+  sourcePoiId: string | null | undefined,
+  sourceType: string
+): string | null {
+  if (sourceType !== "poi") {
+    return null;
+  }
+  if (!sourcePoiId) {
+    return null;
+  }
+  const trimmed = sourcePoiId.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  return shorten(trimmed, 120);
+}
+
+function sanitizeUpdatedBy(updatedBy: string | null | undefined): string | null {
+  if (!updatedBy) {
+    return null;
+  }
+  const trimmed = updatedBy.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  return shorten(trimmed, 120);
 }
 
 function mapPoiToSuggestion(defaultCity: string) {

@@ -17,7 +17,7 @@ export function TopBar(): JSX.Element {
     competitorInput,
     setCompetitorInput,
     setDensityResult,
-    setAnalysisResult,
+    resetPlanningAnalyses,
     toggleAdmin,
   } = usePoiStore();
 
@@ -25,7 +25,7 @@ export function TopBar(): JSX.Element {
     mutationFn: fetchBrandDensity,
     onSuccess: (result) => {
       setDensityResult(result);
-      setAnalysisResult(null);
+      resetPlanningAnalyses();
       if (typeof window !== "undefined") {
         (window as any).lastDensityResult = result;
       }

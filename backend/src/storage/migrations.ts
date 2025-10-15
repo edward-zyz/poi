@@ -5,7 +5,7 @@ import Database from "better-sqlite3";
 
 import { logger } from "../settings/logger.js";
 
-const MIGRATION_VERSION = 2;
+const MIGRATION_VERSION = 3;
 
 function ensureDir(filePath: string): void {
   const dir = path.dirname(filePath);
@@ -95,6 +95,41 @@ export async function ensureMigrations(databasePath: string): Promise<void> {
       db.exec(`
         CREATE INDEX IF NOT EXISTS idx_planning_points_city
         ON planning_points(city);
+      `);
+    }
+
+    if (currentVersion < 3) {
+      db.exec(`
+        ALTER TABLE planning_points
+        ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';
+      `);
+      db.exec(`
+        ALTER TABLE planning_points
+        ADD COLUMN color_token TEXT NOT NULL DEFAULT 'pending';
+      `);
+      db.exec(`
+        ALTER TABLE planning_points
+        ADD COLUMN priority_rank INTEGER NOT NULL DEFAULT 100;
+      `);
+      db.exec(`
+        ALTER TABLE planning_points
+        ADD COLUMN notes TEXT DEFAULT '';
+      `);
+      db.exec(`
+        ALTER TABLE planning_points
+        ADD COLUMN source_type TEXT NOT NULL DEFAULT 'manual';
+      `);
+      db.exec(`
+        ALTER TABLE planning_points
+        ADD COLUMN source_poi_id TEXT;
+      `);
+      db.exec(`
+        ALTER TABLE planning_points
+        ADD COLUMN updated_by TEXT;
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_planning_points_status
+        ON planning_points(status);
       `);
     }
 

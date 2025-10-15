@@ -10,17 +10,43 @@ export interface PlanningPointRecord {
   latitude: number;
   radiusMeters: number;
   color: string;
+  colorToken: string;
+  status: string;
+  priorityRank: number;
+  notes: string;
+  sourceType: string;
+  sourcePoiId: string | null;
+  updatedBy: string | null;
   createdAt: number;
   updatedAt: number;
 }
 
-export type PlanningPointCreateInput = Omit<PlanningPointRecord, "createdAt" | "updatedAt"> & {
+export type PlanningPointCreateInput = Omit<
+  PlanningPointRecord,
+  "createdAt" | "updatedAt" | "updatedBy"
+> & {
   createdAt?: number;
   updatedAt?: number;
+  updatedBy?: string | null;
 };
 
 export type PlanningPointUpdateInput = Partial<
-  Pick<PlanningPointRecord, "city" | "name" | "longitude" | "latitude" | "radiusMeters" | "color">
+  Pick<
+    PlanningPointRecord,
+    | "city"
+    | "name"
+    | "longitude"
+    | "latitude"
+    | "radiusMeters"
+    | "color"
+    | "colorToken"
+    | "status"
+    | "priorityRank"
+    | "notes"
+    | "sourceType"
+    | "sourcePoiId"
+    | "updatedBy"
+  >
 >;
 
 const COLUMN_MAP: Record<keyof PlanningPointUpdateInput, string> = {
@@ -30,6 +56,13 @@ const COLUMN_MAP: Record<keyof PlanningPointUpdateInput, string> = {
   latitude: "latitude",
   radiusMeters: "radius_meters",
   color: "color",
+  colorToken: "color_token",
+  status: "status",
+  priorityRank: "priority_rank",
+  notes: "notes",
+  sourceType: "source_type",
+  sourcePoiId: "source_poi_id",
+  updatedBy: "updated_by",
 };
 
 export class PlanningPointRepository {
@@ -51,7 +84,10 @@ export class PlanningPointRepository {
       .prepare(
         `
         SELECT id, city, name, longitude, latitude, radius_meters as radiusMeters,
-               color, created_at as createdAt, updated_at as updatedAt
+               color, color_token as colorToken, status, priority_rank as priorityRank,
+               COALESCE(notes, '') as notes, source_type as sourceType,
+               source_poi_id as sourcePoiId, updated_by as updatedBy,
+               created_at as createdAt, updated_at as updatedAt
         FROM planning_points
         ${where}
         ORDER BY created_at DESC
@@ -67,7 +103,10 @@ export class PlanningPointRepository {
       .prepare(
         `
         SELECT id, city, name, longitude, latitude, radius_meters as radiusMeters,
-               color, created_at as createdAt, updated_at as updatedAt
+               color, color_token as colorToken, status, priority_rank as priorityRank,
+               COALESCE(notes, '') as notes, source_type as sourceType,
+               source_poi_id as sourcePoiId, updated_by as updatedBy,
+               created_at as createdAt, updated_at as updatedAt
         FROM planning_points
         WHERE id = ?
       `
@@ -82,8 +121,42 @@ export class PlanningPointRepository {
     const updatedAt = Number.isFinite(input.updatedAt) ? Number(input.updatedAt) : timestamp;
 
     const stmt = this.db.prepare(`
-      INSERT INTO planning_points (id, city, name, longitude, latitude, radius_meters, color, created_at, updated_at)
-      VALUES (@id, @city, @name, @longitude, @latitude, @radiusMeters, @color, @createdAt, @updatedAt)
+      INSERT INTO planning_points (
+        id,
+        city,
+        name,
+        longitude,
+        latitude,
+        radius_meters,
+        color,
+        color_token,
+        status,
+        priority_rank,
+        notes,
+        source_type,
+        source_poi_id,
+        updated_by,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        @id,
+        @city,
+        @name,
+        @longitude,
+        @latitude,
+        @radiusMeters,
+        @color,
+        @colorToken,
+        @status,
+        @priorityRank,
+        @notes,
+        @sourceType,
+        @sourcePoiId,
+        @updatedBy,
+        @createdAt,
+        @updatedAt
+      )
     `);
 
     stmt.run({
@@ -94,6 +167,13 @@ export class PlanningPointRepository {
       latitude: input.latitude,
       radiusMeters: input.radiusMeters,
       color: input.color,
+      colorToken: input.colorToken,
+      status: input.status,
+      priorityRank: input.priorityRank,
+      notes: input.notes,
+      sourceType: input.sourceType,
+      sourcePoiId: input.sourcePoiId ?? null,
+      updatedBy: input.updatedBy ?? null,
       createdAt,
       updatedAt,
     });
@@ -106,6 +186,13 @@ export class PlanningPointRepository {
       latitude: input.latitude,
       radiusMeters: input.radiusMeters,
       color: input.color,
+      colorToken: input.colorToken,
+      status: input.status,
+      priorityRank: input.priorityRank,
+      notes: input.notes,
+      sourceType: input.sourceType,
+      sourcePoiId: input.sourcePoiId ?? null,
+      updatedBy: input.updatedBy ?? null,
       createdAt,
       updatedAt,
     };
@@ -165,6 +252,13 @@ export class PlanningPointRepository {
       latitude: Number(row.latitude ?? 0),
       radiusMeters: Number(row.radiusMeters ?? 0),
       color: String(row.color ?? "#22c55e"),
+      colorToken: String(row.colorToken ?? "pending"),
+      status: String(row.status ?? "pending"),
+      priorityRank: Number(row.priorityRank ?? 100),
+      notes: String(row.notes ?? ""),
+      sourceType: String(row.sourceType ?? "manual"),
+      sourcePoiId: row.sourcePoiId ? String(row.sourcePoiId) : null,
+      updatedBy: row.updatedBy ? String(row.updatedBy) : null,
       createdAt: Number(row.createdAt ?? 0),
       updatedAt: Number(row.updatedAt ?? 0),
     };

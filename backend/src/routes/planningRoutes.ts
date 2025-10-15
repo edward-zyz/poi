@@ -11,6 +11,9 @@ const hexColorSchema = z
   .regex(/^#[0-9a-fA-F]{6}$/, "颜色需要使用 HEX 格式，如 #22c55e")
   .optional();
 
+const statusSchema = z.enum(["pending", "priority", "dropped"]).optional();
+const sourceTypeSchema = z.enum(["poi", "manual"]).optional();
+
 const createSchema = z.object({
   city: z.string().min(1, "城市不能为空"),
   name: z.string().min(1, "名称不能为空"),
@@ -18,8 +21,15 @@ const createSchema = z.object({
     lng: z.number(),
     lat: z.number(),
   }),
-  radiusMeters: z.number().int().min(50).max(10000).default(1000),
+  radiusMeters: z.number().int().min(100).max(2000).default(1000),
   color: hexColorSchema,
+  colorToken: z.string().min(1).max(60).optional(),
+  status: statusSchema,
+  priorityRank: z.number().int().min(1).max(999).optional(),
+  notes: z.string().max(2000).optional(),
+  sourceType: sourceTypeSchema,
+  sourcePoiId: z.string().max(120).nullable().optional(),
+  updatedBy: z.string().max(120).nullable().optional(),
 });
 
 const updateSchema = z.object({
@@ -31,8 +41,15 @@ const updateSchema = z.object({
       lat: z.number(),
     })
     .optional(),
-  radiusMeters: z.number().int().min(50).max(10000).optional(),
+  radiusMeters: z.number().int().min(100).max(2000).optional(),
   color: hexColorSchema,
+  colorToken: z.string().min(1).max(60).optional(),
+  status: statusSchema,
+  priorityRank: z.number().int().min(1).max(999).optional(),
+  notes: z.string().max(2000).optional(),
+  sourceType: sourceTypeSchema,
+  sourcePoiId: z.string().max(120).nullable().optional(),
+  updatedBy: z.string().max(120).nullable().optional(),
 });
 
 const listQuerySchema = z.object({
@@ -77,6 +94,13 @@ export function planningRouter(config: AppConfig): Router {
         latitude: payload.center.lat,
         radiusMeters: payload.radiusMeters,
         color: payload.color,
+        colorToken: payload.colorToken,
+        status: payload.status,
+        priorityRank: payload.priorityRank,
+        notes: payload.notes,
+        sourceType: payload.sourceType,
+        sourcePoiId: payload.sourcePoiId,
+        updatedBy: payload.updatedBy,
       });
       res.status(201).json(record);
     } catch (error) {
@@ -87,11 +111,10 @@ export function planningRouter(config: AppConfig): Router {
   router.put("/points/:id", (req, res) => {
     try {
       const payload = updateSchema.parse(req.body);
+      const { center, ...rest } = payload;
       const updates = {
-        ...payload,
-        ...(payload.center
-          ? { longitude: payload.center.lng, latitude: payload.center.lat }
-          : {}),
+        ...rest,
+        ...(center ? { longitude: center.lng, latitude: center.lat } : {}),
       };
       const record = service.update(req.params.id, updates);
       res.json(record);

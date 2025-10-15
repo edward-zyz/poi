@@ -146,6 +146,13 @@ export interface PlanningPoint {
   latitude: number;
   radiusMeters: number;
   color: string;
+  colorToken: string;
+  status: "pending" | "priority" | "dropped";
+  priorityRank: number;
+  notes: string;
+  sourceType: "poi" | "manual";
+  sourcePoiId: string | null;
+  updatedBy: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -155,6 +162,13 @@ export interface PlanningPointPayload {
   name: string;
   radiusMeters?: number;
   color?: string;
+  colorToken?: string;
+  status?: PlanningPoint["status"];
+  priorityRank?: number;
+  notes?: string;
+  sourceType?: PlanningPoint["sourceType"];
+  sourcePoiId?: string | null;
+  updatedBy?: string | null;
   center: { lng: number; lat: number };
 }
 
@@ -163,6 +177,13 @@ export interface PlanningPointUpdatePayload {
   name?: string;
   radiusMeters?: number;
   color?: string;
+  colorToken?: string;
+  status?: PlanningPoint["status"];
+  priorityRank?: number;
+  notes?: string;
+  sourceType?: PlanningPoint["sourceType"];
+  sourcePoiId?: string | null;
+  updatedBy?: string | null;
   center?: { lng: number; lat: number };
 }
 

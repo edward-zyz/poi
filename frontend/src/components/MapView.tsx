@@ -1,10 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { fetchTargetAnalysis } from "../services/api";
+import { fetchTargetAnalysis, type PlanningPoint, type TargetAnalysisResponse } from "../services/api";
 import { usePoiStore } from "../store/usePoiStore";
 import { parseKeywords } from "../utils/keywords";
 import { useAmapLoader } from "../hooks/useAmapLoader";
+import { getPlanningStatusMeta } from "../data/planningOptions";
 
 const CITY_CENTERS: Record<string, [number, number]> = {
   上海市: [121.4737, 31.2304],
@@ -16,8 +17,6 @@ const CITY_CENTERS: Record<string, [number, number]> = {
 };
 
 const DEFAULT_CENTER: [number, number] = [116.4074, 39.9042];
-const DEFAULT_ANALYSIS_RADIUS = 1000;
-
 export function MapView(): JSX.Element {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -28,6 +27,8 @@ export function MapView(): JSX.Element {
     targetCircle: null as any,
     baseMainMarkers: [] as any[],
     baseCompetitorMarkers: [] as any[],
+    baseMainCircles: [] as any[],
+    baseCompetitorCircles: [] as any[],
     planningCircles: [] as any[],
   });
   const infoWindowRef = useRef<any>(null);
@@ -39,11 +40,11 @@ export function MapView(): JSX.Element {
     lat: number;
   } | null>(null);
   const lastAnalysisSignatureRef = useRef<string | null>(null);
+  const lastAnalysisKeyRef = useRef<string | null>(null);
   const renderHeatmapRef = useRef<typeof renderHeatmap>();
   const renderTargetAnalysisRef = useRef<typeof renderTargetAnalysis>();
   const renderBaseMarkersRef = useRef<typeof renderBaseMarkers>();
   const renderPlanningPointsRef = useRef<typeof renderPlanningPoints>();
-  const runAnalysisRef = useRef<typeof runAnalysis>();
 
   const { AMap, error } = useAmapLoader();
   const {
@@ -51,14 +52,21 @@ export function MapView(): JSX.Element {
     competitorInput,
     mainBrandInput,
     densityResult,
-    analysisResult,
-    setAnalysisResult,
-    setTargetPoint,
+    planningAnalyses,
+    analysisLoadingId,
+    analysisError,
+    setPlanningAnalysis,
+    setAnalysisLoading,
+    setAnalysisError,
     showHeatmap,
     showMainPois,
     showCompetitorPois,
     heatmapRadius,
     heatmapOpacity,
+    mainBrandRadius,
+    competitorRadius,
+    mainBrandDisplayMode,
+    competitorDisplayMode,
     planningPoints,
     selectedPlanningPointId,
     setSelectedPlanningPoint,
@@ -130,10 +138,18 @@ export function MapView(): JSX.Element {
       map.remove(overlays.baseCompetitorMarkers);
       overlays.baseCompetitorMarkers = [];
     }
+    if (overlays.baseMainCircles.length) {
+      map.remove(overlays.baseMainCircles);
+      overlays.baseMainCircles = [];
+    }
+    if (overlays.baseCompetitorCircles.length) {
+      map.remove(overlays.baseCompetitorCircles);
+      overlays.baseCompetitorCircles = [];
+    }
   }, []);
 
   const renderTargetAnalysis = useCallback(
-    (map: any, result: typeof analysisResult) => {
+    (map: any, result: TargetAnalysisResponse | null) => {
       if (!map || !AMap) return;
 
       const overlays = overlaysRef.current;
@@ -154,82 +170,13 @@ export function MapView(): JSX.Element {
         return;
       }
 
-      const ensureInfoHandlers = (marker: any, fallback: string) => {
-        if (!infoWindowRef.current || marker.__hasInfoHandler) {
-          return;
-        }
-        marker.on("mouseover", () => {
-          const ext = marker.getExtData?.() ?? {};
-          const name = ext.name || fallback;
-          infoWindowRef.current.setContent(`<div class="poi-toast">${name}</div>`);
-          infoWindowRef.current.open(map, marker.getPosition());
-        });
-        marker.on("mouseout", () => infoWindowRef.current.close());
-        marker.__hasInfoHandler = true;
-      };
+      // 移除主品牌与竞品的 M/C 标签标记，仅保留圈层效果
+      disposeMarkers(overlays.mainMarkers);
+      overlays.mainMarkers = [];
+      disposeMarkers(overlays.competitorMarkers);
+      overlays.competitorMarkers = [];
 
-      const syncMarkers = (
-        existing: any[],
-        pois: Array<{ longitude: number; latitude: number; name: string }>,
-        options: { content: string; fallback: string }
-      ) => {
-        const next: any[] = [];
-        for (let index = 0; index < pois.length; index += 1) {
-          const poi = pois[index];
-          let marker = existing[index];
-          if (!marker) {
-            marker = new AMap.Marker({
-              position: [poi.longitude, poi.latitude],
-              title: poi.name,
-              content: options.content,
-            });
-            marker.setMap(map);
-          } else {
-            marker.setPosition?.([poi.longitude, poi.latitude]);
-            marker.setTitle?.(poi.name);
-            marker.setContent?.(options.content);
-            marker.setMap(map);
-          }
-          marker.setExtData?.({ name: poi.name || options.fallback });
-          ensureInfoHandlers(marker, options.fallback);
-          next.push(marker);
-        }
-        for (let index = pois.length; index < existing.length; index += 1) {
-          const marker = existing[index];
-          marker.setMap?.(null);
-        }
-        return next;
-      };
-
-      if (showMainPois) {
-        overlays.mainMarkers = syncMarkers(
-          overlays.mainMarkers,
-          result.samplePois.mainBrand,
-          {
-            content: '<div class="marker marker-main" style="z-index:200;">M</div>',
-            fallback: "主品牌门店",
-          }
-        );
-      } else {
-        disposeMarkers(overlays.mainMarkers);
-        overlays.mainMarkers = [];
-      }
-
-      if (showCompetitorPois) {
-        overlays.competitorMarkers = syncMarkers(
-          overlays.competitorMarkers,
-          result.samplePois.competitors,
-          {
-            content: '<div class="marker marker-competitor" style="z-index:200;">C</div>',
-            fallback: "竞品门店",
-          }
-        );
-      } else {
-        disposeMarkers(overlays.competitorMarkers);
-        overlays.competitorMarkers = [];
-      }
-
-      if (!overlays.targetCircle) {
+      if (!overlays.targetCircle && AMap && AMap.Circle) {
         overlays.targetCircle = new AMap.Circle({
           center: [result.target.lng, result.target.lat],
           radius: result.radiusMeters,
@@ -253,8 +200,43 @@ export function MapView(): JSX.Element {
         overlays.targetCircle.setMap?.(map);
       }
     },
-    [AMap, showMainPois, showCompetitorPois]
+    [AMap]
   );
+
+  const createRadiusCircle = useCallback((
+    map: any,
+    poi: any,
+    radius: number,
+    color: string
+  ) => {
+    if (!AMap || !AMap.Circle) {
+      return null;
+    }
+    
+    const circle = new AMap.Circle({
+      center: [poi.longitude, poi.latitude],
+      radius: radius,
+      strokeColor: color,
+      strokeOpacity: 0.6,
+      strokeWeight: 1,
+      fillOpacity: 0.15,
+      fillColor: color,
+      zIndex: 120,
+    });
+    circle.setMap(map);
+    
+    if (infoWindowRef.current) {
+      circle.on("mouseover", () => {
+        infoWindowRef.current.setContent(
+          `<div class="poi-toast">${poi.name || "门店"} · 半径${radius}m</div>`
+        );
+        infoWindowRef.current.open(map, circle.getCenter());
+      });
+      circle.on("mouseout", () => infoWindowRef.current.close());
+    }
+    
+    return circle;
+  }, [AMap]);
 
   const renderBaseMarkers = useCallback(
     (map: any, data: typeof densityResult) => {
@@ -269,6 +251,7 @@ export function MapView(): JSX.Element {
         infoWindowRef.current = new AMap.InfoWindow({
           offset: new AMap.Pixel(0, -20),
           closeWhenClickMap: true,
+          isCustom: true,
         });
       }
 
@@ -276,6 +259,10 @@ export function MapView(): JSX.Element {
         poi: { longitude: number; latitude: number; name: string },
         color: string
       ) => {
+        if (!AMap || !AMap.CircleMarker) {
+          return null;
+        }
+        
         const marker = new AMap.CircleMarker({
           center: [poi.longitude, poi.latitude],
           radius: 5,
@@ -299,15 +286,41 @@ export function MapView(): JSX.Element {
         return marker;
       };
 
-      overlaysRef.current.baseMainMarkers = showMainPois
-        ? (data.mainBrandPois ?? []).map((poi) => createCircleMarker(poi, "#ef4444"))
-        : [];
+      // For main brand POIs - show all POIs but with different styles
+      if (showMainPois) {
+        const mainPois = data.mainBrandPois ?? [];
 
-      overlaysRef.current.baseCompetitorMarkers = showCompetitorPois
-        ? (data.competitorPois ?? []).map((poi) => createCircleMarker(poi, "#2563eb"))
-        : [];
+        // Always show all POIs as points
+        overlaysRef.current.baseMainMarkers = mainPois
+          .map((poi) => createCircleMarker(poi, "#ef4444"))
+          .filter((marker): marker is any => marker !== null);
+        
+        // Create radius circles for main brand if in circle mode (for visual effect only)
+        if (mainBrandDisplayMode === "circle") {
+          overlaysRef.current.baseMainCircles = mainPois
+            .map((poi) => createRadiusCircle(map, poi, mainBrandRadius, "#ef4444"))
+            .filter((circle): circle is any => circle !== null);
+        }
+      }
+
+      // For competitor POIs - show all POIs but with different styles  
+      if (showCompetitorPois) {
+        const competitorPois = data.competitorPois ?? [];
+
+        // Always show all POIs as points
+        overlaysRef.current.baseCompetitorMarkers = competitorPois
+          .map((poi) => createCircleMarker(poi, "#2563eb"))
+          .filter((marker): marker is any => marker !== null);
+        
+        // Create radius circles for competitors if in circle mode (for visual effect only)
+        if (competitorDisplayMode === "circle") {
+          overlaysRef.current.baseCompetitorCircles = competitorPois
+            .map((poi) => createRadiusCircle(map, poi, competitorRadius, "#2563eb"))
+            .filter((circle): circle is any => circle !== null);
+        }
+      }
     },
-    [AMap, clearBaseMarkers, showMainPois, showCompetitorPois]
+    [AMap, clearBaseMarkers, showMainPois, showCompetitorPois, mainBrandRadius, competitorRadius, mainBrandDisplayMode, competitorDisplayMode, createRadiusCircle]
   );
 
   const renderPlanningPoints = useCallback(
@@ -328,6 +341,12 @@ export function MapView(): JSX.Element {
       const circles = points.map((point) => {
         const center: [number, number] = [point.longitude, point.latitude];
         const isSelected = point.id === selectedId;
+        const statusMeta = getPlanningStatusMeta(point.status);
+        
+        if (!AMap || !AMap.Circle) {
+          return null;
+        }
+        
         const circle = new AMap.Circle({
           center,
           radius: point.radiusMeters,
@@ -346,7 +365,9 @@ export function MapView(): JSX.Element {
         if (infoWindowRef.current) {
           circle.on("mouseover", () => {
             infoWindowRef.current.setContent(
-              `<div class="poi-toast">${point.name || "规划点"} · ${point.radiusMeters}m</div>`
+              `<div class="poi-toast">${point.name || "规划点"} · ${statusMeta.label} · ${
+                point.radiusMeters
+              }m</div>`
             );
             infoWindowRef.current.open(map, center);
           });
@@ -356,7 +377,7 @@ export function MapView(): JSX.Element {
         return circle;
       });
 
-      overlays.planningCircles = circles;
+      overlays.planningCircles = circles.filter((circle): circle is any => circle !== null);
     },
     [AMap, setSelectedPlanningPoint]
   );
@@ -378,25 +399,31 @@ export function MapView(): JSX.Element {
   }, [renderPlanningPoints]);
 
   const gatherAnalysisParams = useCallback(
-    (point: { lng: number; lat: number }, radiusMeters: number, key: string) => {
+    (point: PlanningPoint) => {
       const mainBrand = mainBrandInput.trim();
       if (!mainBrand) {
         return null;
       }
       const competitorKeywords = parseKeywords(competitorInput);
+      const radiusMeters = Math.max(point.radiusMeters ?? 0, 3000);
+      const target = {
+        lng: point.longitude,
+        lat: point.latitude,
+      };
+
       return {
         payload: {
           city,
           mainBrand,
           competitorKeywords,
           radiusMeters,
-          target: point,
+          target,
         },
         signature: buildAnalysisSignature({
           city,
-          pointKey: key,
-          lng: point.lng,
-          lat: point.lat,
+          pointKey: point.id,
+          lng: target.lng,
+          lat: target.lat,
           radiusMeters,
           mainBrand,
           competitorKeywords,
@@ -418,7 +445,7 @@ export function MapView(): JSX.Element {
   }, []);
 
   const handleAnalysisSuccess = useCallback(
-    (key: string, expectedSignature: string, result: Awaited<ReturnType<typeof fetchTargetAnalysis>>) => {
+    (key: string, expectedSignature: string, result: TargetAnalysisResponse) => {
       const responseSignature = buildAnalysisSignature({
         city: result.city,
         pointKey: key,
@@ -434,7 +461,11 @@ export function MapView(): JSX.Element {
       ) {
         return;
       }
-      setAnalysisResult(result);
+      setPlanningAnalysis(key, result);
+      if (lastAnalysisKeyRef.current === key) {
+        setAnalysisLoading(null);
+        setAnalysisError(null);
+      }
       if (typeof window !== "undefined") {
         (window as any).lastAnalysisResult = result;
       }
@@ -445,36 +476,47 @@ export function MapView(): JSX.Element {
         source: result.source,
       });
     },
-    [setAnalysisResult]
+    [setPlanningAnalysis, setAnalysisError, setAnalysisLoading]
   );
 
-  const runAnalysis = useCallback(
-    (
-      point: { lng: number; lat: number },
-      radiusMeters: number,
-      key: string,
-      options?: { center?: boolean }
-    ): boolean => {
-      const gathered = gatherAnalysisParams(point, radiusMeters, key);
+  const runPlanningAnalysis = useCallback(
+    (point: PlanningPoint, options?: { center?: boolean }): boolean => {
+      const gathered = gatherAnalysisParams(point);
       if (!gathered) {
+        if (!mainBrandInput.trim()) {
+          setAnalysisError("请先填写主品牌后再生成分析");
+        }
         return false;
       }
+      const centerPoint = { lng: point.longitude, lat: point.latitude };
       lastAnalysisSignatureRef.current = gathered.signature;
+      lastAnalysisKeyRef.current = point.id;
       if (options?.center) {
-        centerMapOnPoint(point, key);
+        centerMapOnPoint(centerPoint, point.id);
       }
-      setTargetPoint(point);
+      setAnalysisLoading(point.id);
+      setAnalysisError(null);
       analysisMutation.mutate(gathered.payload, {
-        onSuccess: (result) => handleAnalysisSuccess(key, gathered.signature, result),
+        onSuccess: (result) => handleAnalysisSuccess(point.id, gathered.signature, result),
+        onError: (mutationError) => {
+          if (lastAnalysisKeyRef.current === point.id) {
+            setAnalysisError((mutationError as Error).message ?? "分析失败，请稍后重试");
+            setAnalysisLoading(null);
+          }
+        },
       });
       return true;
     },
-    [analysisMutation, centerMapOnPoint, gatherAnalysisParams, handleAnalysisSuccess, setTargetPoint]
+    [
+      analysisMutation,
+      centerMapOnPoint,
+      gatherAnalysisParams,
+      handleAnalysisSuccess,
+      mainBrandInput,
+      setAnalysisError,
+      setAnalysisLoading,
+    ]
   );
-
-  useEffect(() => {
-    runAnalysisRef.current = runAnalysis;
-  }, [runAnalysis]);
 
   useEffect(() => {
     if (!AMap || mapInstanceRef.current || !mapContainerRef.current) {
@@ -484,9 +526,12 @@ export function MapView(): JSX.Element {
     const state = usePoiStore.getState();
     const initialCity = state.city;
     const initialDensity = state.densityResult;
-    const initialAnalysis = state.analysisResult;
     const initialPlanningPoints = state.planningPoints;
     const initialSelectedPlanning = state.selectedPlanningPointId;
+    const initialAnalysis =
+      initialSelectedPlanning && state.planningAnalyses
+        ? state.planningAnalyses[initialSelectedPlanning] ?? null
+        : null;
     const initialHeatmapRadius = state.heatmapRadius;
     const initialHeatmapOpacity = state.heatmapOpacity;
 
@@ -500,9 +545,10 @@ export function MapView(): JSX.Element {
     infoWindowRef.current = new AMap.InfoWindow({
       offset: new AMap.Pixel(0, -20),
       closeWhenClickMap: true,
+      isCustom: true,
     });
 
-    map.plugin(["AMap.HeatMap"], () => {
+    map.plugin(["AMap.HeatMap", "AMap.Circle", "AMap.CircleMarker"], () => {
       heatmapRef.current = new AMap.HeatMap(map, {
         radius: initialHeatmapRadius,
         gradient: {
@@ -530,16 +576,12 @@ export function MapView(): JSX.Element {
         latestState.setPlanningDraft({
           ...latestState.planningDraft,
           center: point,
+          sourceType: "manual",
+          sourcePoiId: null,
         });
         latestState.setAwaitingPlanningMapClick(false);
         latestState.setSelectedPlanningPoint(null);
         return;
-      }
-      const executed = runAnalysisRef.current
-        ? runAnalysisRef.current(point, DEFAULT_ANALYSIS_RADIUS, "map-click")
-        : false;
-      if (!executed) {
-        latestState.setTargetPoint(point);
       }
     });
 
@@ -583,12 +625,6 @@ export function MapView(): JSX.Element {
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    renderTargetAnalysis(map, analysisResult);
-  }, [analysisResult, renderTargetAnalysis]);
-
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
     renderPlanningPoints(map, planningPoints, selectedPlanningPointId);
   }, [planningPoints, selectedPlanningPointId, renderPlanningPoints]);
 
@@ -597,9 +633,21 @@ export function MapView(): JSX.Element {
     [planningPoints, selectedPlanningPointId]
   );
 
+  const selectedAnalysis = useMemo(() => {
+    if (!selectedPlanningPoint) return null;
+    return planningAnalyses[selectedPlanningPoint.id] ?? null;
+  }, [planningAnalyses, selectedPlanningPoint]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    renderTargetAnalysis(map, selectedAnalysis);
+  }, [selectedAnalysis, renderTargetAnalysis]);
+
   useEffect(() => {
     if (!selectedPlanningPoint) {
       lastAnalysisSignatureRef.current = null;
+      lastAnalysisKeyRef.current = null;
       if (analysisDebounceRef.current) {
         window.clearTimeout(analysisDebounceRef.current);
         analysisDebounceRef.current = null;
@@ -607,19 +655,20 @@ export function MapView(): JSX.Element {
       return;
     }
 
+    const key = selectedPlanningPoint.id;
     const point = {
       lng: selectedPlanningPoint.longitude,
       lat: selectedPlanningPoint.latitude,
     };
-    const key = selectedPlanningPoint.id;
-    const gathered = gatherAnalysisParams(point, selectedPlanningPoint.radiusMeters, key);
-    if (!gathered) {
-      return;
-    }
+    const existing = planningAnalyses[key];
+    const hasUpToDateAnalysis =
+      existing &&
+      existing.city === selectedPlanningPoint.city &&
+      Math.abs(existing.target.lng - point.lng) < 1e-6 &&
+      Math.abs(existing.target.lat - point.lat) < 1e-6 &&
+      existing.generatedAt >= selectedPlanningPoint.updatedAt;
 
-    if (lastAnalysisSignatureRef.current === gathered.signature) {
-      return;
-    }
+    const gathered = gatherAnalysisParams(selectedPlanningPoint);
 
     if (analysisDebounceRef.current) {
       window.clearTimeout(analysisDebounceRef.current);
@@ -632,7 +681,21 @@ export function MapView(): JSX.Element {
         lastCentered.key !== key ||
         lastCentered.lng !== point.lng ||
         lastCentered.lat !== point.lat;
-      runAnalysis(point, selectedPlanningPoint.radiusMeters, key, { center: shouldCenter });
+
+      if (!hasUpToDateAnalysis && gathered) {
+        const alreadyQueued =
+          lastAnalysisSignatureRef.current === gathered.signature &&
+          lastAnalysisKeyRef.current === key &&
+          analysisLoadingId === key;
+        if (!alreadyQueued) {
+          const executed = runPlanningAnalysis(selectedPlanningPoint, { center: shouldCenter });
+          if (!executed && shouldCenter) {
+            centerMapOnPoint(point, key);
+          }
+        }
+      } else if (shouldCenter) {
+        centerMapOnPoint(point, key);
+      }
       analysisDebounceRef.current = null;
     }, 400);
 
@@ -642,21 +705,33 @@ export function MapView(): JSX.Element {
         analysisDebounceRef.current = null;
       }
     };
-  }, [selectedPlanningPoint, gatherAnalysisParams, runAnalysis]);
+  }, [
+    selectedPlanningPoint,
+    planningAnalyses,
+    analysisLoadingId,
+    gatherAnalysisParams,
+    runPlanningAnalysis,
+    centerMapOnPoint,
+  ]);
 
   const statusText = useMemo(() => {
-    if (analysisMutation.isLoading) return "正在计算目标点位";
-    if (analysisMutation.isError) {
-      return (analysisMutation.error as Error).message;
+    if (analysisLoadingId) {
+      return "正在计算候选点分析";
     }
-    if (analysisResult) {
-      return `密度等级：${analysisResult.densityLevel.toUpperCase()} · 数据来源 ${analysisResult.source}`;
+    if (analysisError) {
+      return analysisError;
+    }
+    if (selectedAnalysis) {
+      return `密度等级：${selectedAnalysis.densityLevel.toUpperCase()} · 数据来源 ${selectedAnalysis.source}`;
     }
     if (densityResult) {
       return `热力图已加载 · 数据来源 ${densityResult.source}`;
     }
-    return "等待用户输入";
-  }, [analysisMutation.isLoading, analysisResult, densityResult]);
+    if (selectedPlanningPoint) {
+      return "候选点准备就绪，等待分析条件";
+    }
+    return "请选择或新增候选点";
+  }, [analysisLoadingId, analysisError, selectedAnalysis, densityResult, selectedPlanningPoint]);
 
   return (
     <>
@@ -670,6 +745,17 @@ export function MapView(): JSX.Element {
           </div>
           <div className="legend-item">
             <span className="legend-swatch legend-competitor" /> 竞品 POI
+          </div>
+        </div>
+        <div className="legend-section">
+          <div className="legend-item">
+            <span className="legend-swatch" style={{ backgroundColor: "#f59e0b" }} /> 待考察点位
+          </div>
+          <div className="legend-item">
+            <span className="legend-swatch" style={{ backgroundColor: "#8b5cf6" }} /> 重点跟进点位
+          </div>
+          <div className="legend-item">
+            <span className="legend-swatch" style={{ backgroundColor: "#94a3b8" }} /> 淘汰点位
           </div>
         </div>
         <div className="legend-section">
