@@ -85,7 +85,7 @@ export function CacheManager(): JSX.Element | null {
     <div className="cache-overlay" role="dialog" aria-modal="true">
       <div className="cache-panel">
         <div className="cache-header">
-          <h2>POI 缓存管理</h2>
+          <h2>POI管理</h2>
           <button type="button" className="close-btn" onClick={closeAdmin}>
             ×
           </button>

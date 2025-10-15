@@ -67,7 +67,7 @@ export function TopBar(): JSX.Element {
     <div className="topbar">
       <div className="brand">
         <span>Location Scout MVP</span>
-        <h1>餐饮门店选址辅助工具</h1>
+        <h1>门店选址辅助工具</h1>
       </div>
       <div className="controls">
         <label className="control">
@@ -104,7 +104,7 @@ export function TopBar(): JSX.Element {
           />
         </label>
         <button className="secondary" type="button" onClick={toggleAdmin}>
-          缓存管理
+          POI管理
         </button>
         <button className="primary" onClick={handleGenerate} disabled={mutation.isLoading}>
           {mutation.isLoading ? "计算中..." : "生成分析"}

@@ -5,7 +5,7 @@ import Database from "better-sqlite3";
 
 import { logger } from "../settings/logger.js";
 
-const MIGRATION_VERSION = 1;
+const MIGRATION_VERSION = 2;
 
 function ensureDir(filePath: string): void {
   const dir = path.dirname(filePath);
@@ -33,53 +33,70 @@ export async function ensureMigrations(databasePath: string): Promise<void> {
       .get() as { value?: string } | undefined;
     const currentVersion = versionRow ? Number(versionRow.value) : 0;
 
-    if (currentVersion >= MIGRATION_VERSION) {
-      db.exec("COMMIT");
-      return;
+    if (currentVersion < 1) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS poi_cache (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          keyword TEXT NOT NULL,
+          city TEXT NOT NULL,
+          poi_id TEXT NOT NULL,
+          name TEXT,
+          category TEXT,
+          address TEXT,
+          longitude REAL,
+          latitude REAL,
+          raw_json TEXT,
+          fetch_source TEXT DEFAULT 'gaode',
+          fetched_at INTEGER NOT NULL,
+          UNIQUE(keyword, city, poi_id)
+        );
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS poi_aggregate (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          city TEXT NOT NULL,
+          keyword_set_hash TEXT NOT NULL,
+          grid_id TEXT NOT NULL,
+          poi_count INTEGER NOT NULL,
+          radius INTEGER NOT NULL,
+          payload TEXT,
+          computed_at INTEGER NOT NULL,
+          UNIQUE(city, keyword_set_hash, grid_id, radius)
+        );
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS poi_analysis_cache (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          city TEXT NOT NULL,
+          keyword_set_hash TEXT NOT NULL,
+          result_json TEXT NOT NULL,
+          computed_at INTEGER NOT NULL,
+          UNIQUE(city, keyword_set_hash)
+        );
+      `);
     }
 
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS poi_cache (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        keyword TEXT NOT NULL,
-        city TEXT NOT NULL,
-        poi_id TEXT NOT NULL,
-        name TEXT,
-        category TEXT,
-        address TEXT,
-        longitude REAL,
-        latitude REAL,
-        raw_json TEXT,
-        fetch_source TEXT DEFAULT 'gaode',
-        fetched_at INTEGER NOT NULL,
-        UNIQUE(keyword, city, poi_id)
-      );
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS poi_aggregate (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        city TEXT NOT NULL,
-        keyword_set_hash TEXT NOT NULL,
-        grid_id TEXT NOT NULL,
-        poi_count INTEGER NOT NULL,
-        radius INTEGER NOT NULL,
-        payload TEXT,
-        computed_at INTEGER NOT NULL,
-        UNIQUE(city, keyword_set_hash, grid_id, radius)
-      );
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS poi_analysis_cache (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        city TEXT NOT NULL,
-        keyword_set_hash TEXT NOT NULL,
-        result_json TEXT NOT NULL,
-        computed_at INTEGER NOT NULL,
-        UNIQUE(city, keyword_set_hash)
-      );
-    `);
+    if (currentVersion < 2) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS planning_points (
+          id TEXT PRIMARY KEY,
+          city TEXT NOT NULL,
+          name TEXT NOT NULL,
+          longitude REAL NOT NULL,
+          latitude REAL NOT NULL,
+          radius_meters INTEGER NOT NULL,
+          color TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_planning_points_city
+        ON planning_points(city);
+      `);
+    }
 
     db.prepare(
       `INSERT OR REPLACE INTO metadata(key, value) VALUES ('schema_version', ?)`

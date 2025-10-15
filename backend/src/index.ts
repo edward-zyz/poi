@@ -7,6 +7,7 @@ import { logger } from "./settings/logger.js";
 import { ensureMigrations } from "./storage/migrations.js";
 import { poiRouter } from "./routes/poiRoutes.js";
 import { createGaodeProxyRouter } from "./routes/gaodeProxy.js";
+import { planningRouter } from "./routes/planningRoutes.js";
 
 const config = loadConfig();
 
@@ -30,6 +31,7 @@ async function bootstrap(): Promise<void> {
   });
 
   app.use("/api/poi", poiRouter(config));
+  app.use("/api/planning", planningRouter(config));
 
   const server = createServer(app);
   server.listen(config.port, () => {

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { usePoiStore } from "../store/usePoiStore";
+import { PlanningManager } from "./PlanningManager";
 
 export function LeftPanel(): JSX.Element {
   const {
@@ -150,14 +151,7 @@ export function LeftPanel(): JSX.Element {
         </section>
         <section>
           <hr className="layer-divider" />
-          <div className="layer-toggle">
-            <span className="layer-title">选址规划圈</span>
-            <div className={`toggle ${analysisResult ? "active" : ""}`} />
-          </div>
-          <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px" }}>
-            点击地图设置候选点，系统自动绘制 1000m 分析圈。
-          </p>
-          <button className="secondary" type="button" onClick={() => alert("请直接点击地图选择目标点位")}>新增候选点</button>
+          <PlanningManager />
         </section>
       </div>
     </aside>

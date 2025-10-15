@@ -1,6 +1,6 @@
 {
   "mapProvider": "gaode",
-  "apiKey": "27b677e7a72dc44f38571705fccbe423",
+  "apiKey": "",
   "baseUrl": "https://restapi.amap.com",
   "services": {
     "placeSearch": "/v3/place/text",

@@ -137,3 +137,77 @@ export async function refreshCache(payload: CacheRefreshPayload): Promise<CacheR
   const { data } = await client.post<CacheRefreshResponse>("/poi/cache/refresh", payload);
   return data;
 }
+
+export interface PlanningPoint {
+  id: string;
+  city: string;
+  name: string;
+  longitude: number;
+  latitude: number;
+  radiusMeters: number;
+  color: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PlanningPointPayload {
+  city: string;
+  name: string;
+  radiusMeters?: number;
+  color?: string;
+  center: { lng: number; lat: number };
+}
+
+export interface PlanningPointUpdatePayload {
+  city?: string;
+  name?: string;
+  radiusMeters?: number;
+  color?: string;
+  center?: { lng: number; lat: number };
+}
+
+export interface PlanningPoiSuggestion {
+  id: string;
+  name: string;
+  address: string;
+  longitude: number;
+  latitude: number;
+  city: string;
+}
+
+export interface PlanningPoiSearchPayload {
+  city: string;
+  keyword: string;
+  limit?: number;
+}
+
+export async function fetchPlanningPoints(city?: string): Promise<PlanningPoint[]> {
+  const { data } = await client.get<PlanningPoint[]>("/planning/points", {
+    params: city ? { city } : undefined,
+  });
+  return data;
+}
+
+export async function createPlanningPoint(payload: PlanningPointPayload): Promise<PlanningPoint> {
+  const { data } = await client.post<PlanningPoint>("/planning/points", payload);
+  return data;
+}
+
+export async function updatePlanningPoint(
+  id: string,
+  payload: PlanningPointUpdatePayload
+): Promise<PlanningPoint> {
+  const { data } = await client.put<PlanningPoint>(`/planning/points/${id}`, payload);
+  return data;
+}
+
+export async function deletePlanningPoint(id: string): Promise<void> {
+  await client.delete(`/planning/points/${id}`);
+}
+
+export async function searchPlanningPois(
+  payload: PlanningPoiSearchPayload
+): Promise<PlanningPoiSuggestion[]> {
+  const { data } = await client.post<PlanningPoiSuggestion[]>("/planning/search", payload);
+  return data;
+}

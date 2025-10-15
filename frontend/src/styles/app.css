@@ -608,3 +608,232 @@
 .panel.panel-top {
   top: 110px;
 }
+
+.planning-form {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(248, 250, 252, 0.7);
+}
+
+.planning-form__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.planning-form__header button {
+  border: none;
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.planning-search {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.planning-search label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.planning-search input {
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.planning-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.planning-suggestion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.planning-suggestion.active {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25);
+}
+
+.planning-suggestion__name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.planning-suggestion__address {
+  color: #64748b;
+}
+
+.planning-helper {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.planning-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.planning-form__fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.planning-form__fields input {
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.planning-color-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.planning-color-picker div {
+  display: flex;
+  gap: 8px;
+}
+
+.planning-color {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+
+.planning-color.selected {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+}
+
+.planning-coords {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.planning-coords strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.planning-error {
+  margin: 0;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.planning-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.planning-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.planning-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  cursor: pointer;
+}
+
+.planning-item.active {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.planning-item__color {
+  width: 12px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.planning-item__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.planning-item__content strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.planning-item__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.planning-item__actions button {
+  border: none;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.link-button {
+  margin-left: 8px;
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: underline;
+}
