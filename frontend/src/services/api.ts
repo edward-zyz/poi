@@ -92,8 +92,11 @@ export interface PoiSummary {
   fetchSource?: string;
 }
 
+const API_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL?.trim()) || "/api";
+
 const client = axios.create({
-  baseURL: "/api",
+  baseURL: API_BASE_URL.replace(/\/+$/, ""),
   timeout: 120000, // 增加到2分钟，给数据采集更长时间
 });
 
