@@ -34,8 +34,9 @@ async function bootstrap(): Promise<void> {
   app.use("/api/planning", planningRouter(config));
 
   const server = createServer(app);
-  server.listen(config.port, () => {
-    logger.info(`Backend listening on http://localhost:${config.port}`);
+  const host = "0.0.0.0";
+  server.listen(config.port, host, () => {
+    logger.info(`Backend listening on http://${host}:${config.port}`);
   });
 }
 
