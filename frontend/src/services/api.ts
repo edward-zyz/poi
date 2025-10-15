@@ -97,7 +97,7 @@ const API_BASE_URL =
 
 const client = axios.create({
   baseURL: API_BASE_URL.replace(/\/+$/, ""),
-  timeout: 120000, // 增加到2分钟，给数据采集更长时间
+  timeout: 900000, // 延长至15分钟，支持长时间的数据刷新任务
 });
 
 export interface DensityPayload {
