@@ -1435,11 +1435,11 @@ button.loading .loading-spinner {
   }
 
   .legend-swatch.legend-main {
-    background: #3b82f6;
+    background: #ef4444;
   }
 
   .legend-swatch.legend-competitor {
-    background: #ef4444;
+    background: #2563eb;
   }
 
   .legend-gradient {
