@@ -149,9 +149,8 @@ export class PoiService {
       };
     }
 
-    const { poisByKeyword, source } = await this.ensurePoisWithTtl(params.city, normalizedKeywords, {
+    const { poisByKeyword, source } = await this.ensurePois(params.city, normalizedKeywords, {
       allowNetworkFetch: false,
-      ignoreTtl: true,
     });
     const gridSize = 500;
 
@@ -281,16 +280,8 @@ export class PoiService {
     keywords: string[],
     options: { allowNetworkFetch?: boolean } = {}
   ): Promise<{ poisByKeyword: Record<string, PoiRecord[]>; source: FetchSource }> {
-    return this.ensurePoisWithTtl(city, keywords, options);
-  }
-
-  private async ensurePoisWithTtl(
-    city: string,
-    keywords: string[],
-    options: { allowNetworkFetch?: boolean; ignoreTtl?: boolean } = {}
-  ): Promise<{ poisByKeyword: Record<string, PoiRecord[]>; source: FetchSource }> {
-    const maxAgeSeconds = options.ignoreTtl ? undefined : this.config.cacheTtlSeconds;
-    const cacheHit = this.repo.getPois(city, keywords, maxAgeSeconds);
+    // 移除TTL限制，使用所有缓存数据，与POI管理界面保持一致
+    const cacheHit = this.repo.getPois(city, keywords);
     const byKeyword = new Map<string, PoiRecord[]>();
     for (const keyword of keywords) {
       byKeyword.set(keyword, []);

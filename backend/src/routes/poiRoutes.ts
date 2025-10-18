@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { AppConfig } from "../settings/config.js";
 import { PoiService } from "../services/poiService.js";
+import { PoiServiceEnhanced } from "../services/poiServiceEnhanced.js";
 import { isAppError } from "../utils/errors.js";
 import { logger } from "../settings/logger.js";
 
@@ -10,6 +11,7 @@ const densitySchema = z.object({
   city: z.string().min(1),
   keywords: z.array(z.string()).min(1),
   mainBrand: z.string().optional(),
+  useTtl: z.boolean().optional().default(false),
 });
 
 const analysisSchema = z.object({
@@ -33,6 +35,14 @@ const cacheStatsQuerySchema = z.object({
       const trimmed = str.trim();
       return trimmed.length > 0 ? trimmed : undefined;
     }),
+  useTtl: z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform((value) => {
+      if (value === undefined || value === null) return false; // 默认不使用TTL
+      if (typeof value === "string") return value.toLowerCase() === "true";
+      return Boolean(value);
+    }),
 });
 
 const cacheRefreshSchema = z.object({
@@ -43,6 +53,7 @@ const cacheRefreshSchema = z.object({
 export function poiRouter(config: AppConfig): Router {
   const router = Router();
   const service = new PoiService(config);
+  const enhancedService = new PoiServiceEnhanced(config);
 
   router.post("/density", async (req, res) => {
     try {
@@ -66,9 +77,79 @@ export function poiRouter(config: AppConfig): Router {
 
   router.get("/cache/stats", async (req, res) => {
     try {
+      const { city, useTtl } = cacheStatsQuerySchema.parse(req.query);
+      const result = useTtl 
+        ? await service.getPoiStats(city) // 使用TTL限制
+        : await enhancedService.getPoiStatsConsistent(city); // 不使用TTL限制
+      res.json({
+        ...result,
+        meta: {
+          useTtl,
+          note: useTtl ? "使用TTL限制，只显示有效期内数据" : "忽略TTL限制，显示所有缓存数据"
+        }
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
+  // 数据一致性检查接口
+  router.get("/cache/consistency-check", async (req, res) => {
+    try {
       const { city } = cacheStatsQuerySchema.parse(req.query);
-      const result = await service.getPoiStats(city);
-      res.json(result);
+      const [normalStats, consistentStats, distribution] = await Promise.all([
+        service.getPoiStats(city),
+        enhancedService.getPoiStatsConsistent(city),
+        enhancedService.getDataDistributionAnalysis(city)
+      ]);
+      
+      res.json({
+        city,
+        timestamp: Math.floor(Date.now() / 1000),
+        comparison: {
+          withTtl: {
+            total: normalStats.total,
+            keywords: normalStats.stats.length
+          },
+          withoutTtl: {
+            total: consistentStats.total,
+            keywords: consistentStats.stats.length
+          },
+          difference: {
+            total: consistentStats.total - normalStats.total,
+            keywords: consistentStats.stats.length - normalStats.stats.length
+          }
+        },
+        distribution,
+        recommendations: generateRecommendations(distribution)
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
+  // 带TTL选项的热力图分析接口
+  router.post("/density/with-ttl-option", async (req, res) => {
+    try {
+      const payload = densitySchema.parse(req.body);
+      const { useTtl, ...densityParams } = payload;
+      
+      let result;
+      if (useTtl) {
+        // 使用原来的逻辑（有TTL限制）
+        result = await service.loadBrandDensity(densityParams);
+      } else {
+        // 使用新的逻辑（无TTL限制）
+        result = await enhancedService.loadBrandDensity(densityParams);
+      }
+      
+      res.json({
+        ...result,
+        meta: {
+          useTtl: useTtl || false,
+          note: useTtl ? "使用TTL限制的数据进行热力图分析" : "使用所有缓存数据进行热力图分析"
+        }
+      });
     } catch (error) {
       handleError(res, error);
     }
@@ -90,6 +171,36 @@ export function poiRouter(config: AppConfig): Router {
   });
 
   return router;
+}
+
+function generateRecommendations(distribution: any): string[] {
+  const recommendations: string[] = [];
+  const { totalRecords, validRecords, expiredRecords, keywordDistribution, timeDistribution } = distribution;
+  
+  // 数据时效性建议
+  if (expiredRecords > 0) {
+    const expiredPercentage = (expiredRecords / totalRecords * 100).toFixed(1);
+    recommendations.push(`${expiredPercentage}% 的POI数据已过期，建议刷新缓存`);
+  }
+  
+  // 时间分布建议
+  const oldData = timeDistribution.filter((t: any) => t.ageHours > 168); // 超过7天
+  if (oldData.length > 0) {
+    recommendations.push("部分POI数据超过7天，建议考虑延长TTL或定期刷新");
+  }
+  
+  // 关键词分布建议
+  const zeroValidKeywords = keywordDistribution.filter((k: any) => k.valid === 0);
+  if (zeroValidKeywords.length > 0) {
+    const keywordNames = zeroValidKeywords.map((k: any) => k.keyword).join(", ");
+    recommendations.push(`关键词 ${keywordNames} 的数据已全部过期，需要重新获取`);
+  }
+  
+  if (recommendations.length === 0) {
+    recommendations.push("数据状态良好，无特殊建议");
+  }
+  
+  return recommendations;
 }
 
 function handleError(res: any, error: unknown): void {
