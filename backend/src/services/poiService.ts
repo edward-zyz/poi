@@ -149,13 +149,15 @@ export class PoiService {
       };
     }
 
-    const { poisByKeyword, source } = await this.ensurePois(params.city, normalizedKeywords, {
+    const { poisByKeyword, source } = await this.ensurePoisWithTtl(params.city, normalizedKeywords, {
       allowNetworkFetch: false,
+      ignoreTtl: true,
     });
     const gridSize = 500;
 
+    // For heatmap generation, ignore TTL limit to show available data
     const allCached = dedupePois(
-      this.repo.getAllPois(params.city, this.config.cacheTtlSeconds)
+      this.repo.getAllPois(params.city)
     );
 
     const heatmap = aggregateToGrid(
@@ -279,7 +281,16 @@ export class PoiService {
     keywords: string[],
     options: { allowNetworkFetch?: boolean } = {}
   ): Promise<{ poisByKeyword: Record<string, PoiRecord[]>; source: FetchSource }> {
-    const cacheHit = this.repo.getPois(city, keywords, this.config.cacheTtlSeconds);
+    return this.ensurePoisWithTtl(city, keywords, options);
+  }
+
+  private async ensurePoisWithTtl(
+    city: string,
+    keywords: string[],
+    options: { allowNetworkFetch?: boolean; ignoreTtl?: boolean } = {}
+  ): Promise<{ poisByKeyword: Record<string, PoiRecord[]>; source: FetchSource }> {
+    const maxAgeSeconds = options.ignoreTtl ? undefined : this.config.cacheTtlSeconds;
+    const cacheHit = this.repo.getPois(city, keywords, maxAgeSeconds);
     const byKeyword = new Map<string, PoiRecord[]>();
     for (const keyword of keywords) {
       byKeyword.set(keyword, []);
