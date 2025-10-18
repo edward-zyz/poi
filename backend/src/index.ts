@@ -6,6 +6,7 @@ import { createServer } from "http";
 import { loadConfig } from "./settings/config.js";
 import { logger } from "./settings/logger.js";
 import { ensureMigrations } from "./storage/migrations.js";
+import { ensureStorageDirectory, checkStorageHealth } from "./storage/initStorage.js";
 import { poiRouter } from "./routes/poiRoutes.js";
 import { createGaodeProxyRouter } from "./routes/gaodeProxy.js";
 import { planningRouter } from "./routes/planningRoutes.js";
@@ -13,6 +14,15 @@ import { planningRouter } from "./routes/planningRoutes.js";
 const config = loadConfig();
 
 async function bootstrap(): Promise<void> {
+  // 确保存储目录存在（Railway环境）
+  ensureStorageDirectory();
+  
+  // 检查存储健康状态
+  const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  if (isRailway && !checkStorageHealth()) {
+    logger.error("Railway storage health check failed - POI cache may not persist");
+  }
+  
   await ensureMigrations(config.databasePath);
 
   const app = express();
@@ -22,12 +32,20 @@ async function bootstrap(): Promise<void> {
   app.use(express.json({ limit: "2mb" }));
 
   app.get("/api/status", (_req, res) => {
+    const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_VOLUME_MOUNT_PATH;
+    const storageStatus = isRailway ? "persistent-volume" : "local-filesystem";
+    
     res.json({
       service: "poi-location-scout-backend",
       status: "ok",
       version: config.version,
       provider: "gaode",
       cacheTtlHours: config.cacheTtlHours,
+      databasePath: config.databasePath,
+      storageType: storageStatus,
+      environment: isRailway ? "railway" : "local",
+      railwayEnv: process.env.RAILWAY_ENVIRONMENT,
+      railwayVolume: process.env.RAILWAY_VOLUME_MOUNT_PATH,
     });
   });
 

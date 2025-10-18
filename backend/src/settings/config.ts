@@ -85,9 +85,17 @@ export function loadConfig(): AppConfig {
 
   const port = Number(process.env.PORT ?? 4000);
   const cacheTtlHours = Number(process.env.CACHE_TTL_HOURS ?? DEFAULT_CACHE_TTL_HOURS);
+  
+  // 检测Railway环境
+  const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  
   const databasePath =
     process.env.SQLITE_DB_PATH ??
-    (process.env.NODE_ENV === "test" ? path.resolve(process.cwd(), "storage", "test.sqlite") : FALLBACK_DB);
+    (process.env.NODE_ENV === "test" 
+      ? path.resolve(process.cwd(), "storage", "test.sqlite") 
+      : (isRailway 
+          ? "/app/storage/poi-cache.sqlite"  // Railway Volume path
+          : FALLBACK_DB));
 
   return {
     version: pkg.version ?? "0.0.0",
