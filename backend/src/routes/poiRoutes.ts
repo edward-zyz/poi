@@ -159,14 +159,50 @@ export function poiRouter(config: AppConfig): Router {
     try {
       const payload = cacheRefreshSchema.parse(req.body);
       
-      // 设置响应头以支持长时间运行的请求
+      // 设置流式响应头，避免超时
+      res.setHeader('Content-Type', 'application/json');
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Transfer-Encoding', 'chunked');
       
-      const result = await service.refreshPoiCache(payload.city, payload.keywords);
-      res.json(result);
+      // 开始流式响应
+      res.write('{"status":"started","message":"开始刷新POI缓存...","progress":0}\n');
+      // res.flush?.(); // Node.js的Response对象没有flush方法
+      
+      const result = await service.refreshPoiCacheWithProgress(
+        payload.city, 
+        payload.keywords,
+        (progress: number, message: string, keyword?: string) => {
+          // 发送进度更新
+          const update = {
+            status: "progress",
+            message,
+            progress,
+            currentKeyword: keyword,
+            timestamp: Date.now()
+          };
+          res.write(`${JSON.stringify(update)}\n`);
+          // res.flush?.(); // Node.js的Response对象没有flush方法
+        }
+      );
+      
+      // 发送最终结果
+      res.write(`${JSON.stringify({status:"completed",...result})}\n`);
+      res.end();
     } catch (error) {
-      handleError(res, error);
+      // 发送错误信息
+      try {
+        const errorResponse = {
+          status: "error",
+          message: error instanceof Error ? error.message : "Unknown error",
+          timestamp: Date.now()
+        };
+        res.write(`${JSON.stringify(errorResponse)}\n`);
+        res.end();
+      } catch (writeError) {
+        // 如果响应已经关闭，只能记录日志
+        logger.error({ err: error }, "POI cache refresh failed");
+      }
     }
   });
 

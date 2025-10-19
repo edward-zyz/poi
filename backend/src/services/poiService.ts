@@ -433,6 +433,106 @@ export class PoiService {
       results,
     };
   }
+
+  async refreshPoiCacheWithProgress(
+    city: string, 
+    keywords: string[],
+    onProgress?: (progress: number, message: string, keyword?: string) => void
+  ): Promise<PoiCacheRefreshResult> {
+    const normalizedKeywords = normalizeKeywords(keywords);
+    if (normalizedKeywords.length === 0) {
+      throw new AppError("至少需要一个关键词", { status: 400, code: "invalid_keywords" });
+    }
+
+    if (!hasUsableApiKey(this.config.gaode.apiKey)) {
+      throw new AppError("Gaode API key is not configured; please provide a valid key.", {
+        status: 503,
+        code: "gaode_api_key_missing",
+      });
+    }
+
+    onProgress?.(0, "开始刷新POI缓存");
+    
+    const results: Array<{ keyword: string; fetched: number }> = [];
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < normalizedKeywords.length; i++) {
+      const keyword = normalizedKeywords[i];
+      try {
+        onProgress?.(
+          Math.round((i / normalizedKeywords.length) * 100), 
+          `正在获取"${keyword}"的POI数据...`, 
+          keyword
+        );
+        
+        // 使用setTimeout避免阻塞事件循环
+        await new Promise<void>((resolve, reject) => {
+          setTimeout(async () => {
+            try {
+              const pois = await this.provider.placeTextSearch({ keywords: keyword, city });
+              const mapped = pois.map((poi) => mapPoiRecord(poi, keyword, city));
+              
+              // 分批插入，避免长时间阻塞
+              for (let j = 0; j < mapped.length; j += 50) {
+                const batch = mapped.slice(j, j + 50);
+                this.repo.upsertPois(batch);
+                
+                // 每50条记录后让出控制权
+                if (j % 100 === 0) {
+                  await new Promise(resolve => setTimeout(resolve, 10));
+                }
+              }
+              
+              results.push({ keyword, fetched: mapped.length });
+              successCount++;
+              resolve();
+            } catch (error) {
+              errorCount++;
+              logger.error({ 
+                err: error, 
+                city, 
+                keyword,
+                progress: `${i + 1}/${normalizedKeywords.length}`,
+                successCount,
+                errorCount
+              }, "POI数据获取失败");
+              
+              results.push({ keyword, fetched: 0 });
+              resolve(); // 继续处理下一个关键词
+            }
+          }, 0);
+        });
+        
+      } catch (error) {
+        errorCount++;
+        logger.error({ err: error, city, keyword }, "POI缓存刷新关键词处理失败");
+        results.push({ keyword, fetched: 0 });
+      }
+    }
+
+    const totalFetched = results.reduce((sum, item) => sum + item.fetched, 0);
+    
+    onProgress?.(100, "缓存刷新完成");
+
+    logger.info({ 
+      city, 
+      keywords: normalizedKeywords,
+      totalKeywords: normalizedKeywords.length,
+      successCount,
+      errorCount,
+      totalFetched,
+      generatedAt: Math.floor(Date.now() / 1000)
+    }, "POI缓存刷新完成");
+
+    return {
+      city,
+      keywords: normalizedKeywords,
+      totalFetched,
+      generatedAt: Math.floor(Date.now() / 1000),
+      results,
+    };
+  }
 }
 
 function normalizeKeywords(keywords: string[]): string[] {
