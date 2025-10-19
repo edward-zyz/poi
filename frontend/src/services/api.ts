@@ -115,7 +115,11 @@ export interface AnalysisPayload {
 }
 
 export async function fetchBrandDensity(payload: DensityPayload): Promise<BrandDensityResponse> {
-  const { data } = await client.post<BrandDensityResponse>("/poi/density", payload);
+  // 使用无TTL限制的API接口，确保显示所有缓存数据
+  const { data } = await client.post<BrandDensityResponse>("/poi/density/with-ttl-option", {
+    ...payload,
+    useTtl: false, // 明确禁用TTL限制
+  });
   return data;
 }
 
@@ -126,7 +130,10 @@ export async function fetchTargetAnalysis(payload: AnalysisPayload): Promise<Tar
 
 export async function fetchCacheStats(city?: string): Promise<CacheStatsResponse> {
   const { data } = await client.get<CacheStatsResponse>("/poi/cache/stats", {
-    params: city ? { city } : undefined,
+    params: { 
+      city, 
+      useTtl: false // 明确禁用TTL限制，显示所有缓存数据
+    },
   });
   return data;
 }
