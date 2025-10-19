@@ -3,7 +3,7 @@ import path from "node:path";
 import { logger } from "../settings/logger.js";
 
 export async function ensureStorageDirectory(): Promise<void> {
-  const storageDir = "/app/storage";
+  const storageDir = "/mnt/data";
   const isRailway = Boolean(
     process.env.RAILWAY_ENVIRONMENT || 
     process.env.RAILWAY_VOLUME_MOUNT_PATH ||
@@ -57,7 +57,7 @@ export async function ensureStorageDirectory(): Promise<void> {
 }
 
 export function checkStorageHealth(): boolean {
-  const storageDir = "/app/storage";
+  const storageDir = "/mnt/data";
   const testFile = path.join(storageDir, ".health-check");
   
   try {

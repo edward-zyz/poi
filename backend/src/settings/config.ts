@@ -101,7 +101,7 @@ export function loadConfig(): AppConfig {
     (process.env.NODE_ENV === "test" 
       ? path.resolve(process.cwd(), "storage", "test.sqlite") 
       : (isRailway 
-          ? "/app/storage/poi-cache.sqlite"  // Railway Volume path
+          ? "/mnt/data/poi-cache.sqlite"  // Railway自动挂载路径
           : FALLBACK_DB));
 
   return {

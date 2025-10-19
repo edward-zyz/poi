@@ -55,7 +55,7 @@ async function bootstrap(): Promise<void> {
     if (isRailway) {
       try {
         const dbExists = require("fs").existsSync(config.databasePath);
-        const storageExists = require("fs").existsSync("/app/storage");
+        const storageExists = require("fs").existsSync("/mnt/data");
         volumeStatus = dbExists ? "mounted-with-data" : (storageExists ? "mounted-empty" : "not-mounted");
       } catch (error) {
         volumeStatus = "error";
@@ -114,8 +114,8 @@ async function bootstrap(): Promise<void> {
       try {
         const fs = require("fs");
         
-        // 检查/storage目录
-        diagnosis.storageChecks.storageDirExists = fs.existsSync("/app/storage");
+        // 检查/mnt/data目录
+        diagnosis.storageChecks.storageDirExists = fs.existsSync("/mnt/data");
         
         // 检查数据库文件
         diagnosis.storageChecks.databaseExists = fs.existsSync(config.databasePath);
@@ -123,7 +123,7 @@ async function bootstrap(): Promise<void> {
         // 检查目录权限
         if (diagnosis.storageChecks.storageDirExists) {
           try {
-            const testFile = "/app/storage/.diagnosis-test";
+            const testFile = "/mnt/data/.diagnosis-test";
             fs.writeFileSync(testFile, `diagnosis-${Date.now()}`);
             fs.unlinkSync(testFile);
             diagnosis.storageChecks.storageWritable = true;
@@ -134,7 +134,7 @@ async function bootstrap(): Promise<void> {
           
           // 列出目录内容
           try {
-            const files = fs.readdirSync("/app/storage");
+            const files = fs.readdirSync("/mnt/data");
             diagnosis.storageChecks.storageFiles = files;
           } catch (error) {
             diagnosis.errors.push(`Cannot list storage directory: ${error instanceof Error ? error.message : String(error)}`);
