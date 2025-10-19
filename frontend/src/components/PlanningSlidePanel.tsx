@@ -174,15 +174,7 @@ export function PlanningSlidePanel(): JSX.Element {
               />
             </label>
             
-            <div className="button-group">
-              <button className="secondary" type="button" onClick={toggleAdmin}>
-                POI管理
-              </button>
-              <button className="primary" onClick={handleGenerate} disabled={mutation.isLoading}>
-                {mutation.isLoading ? "计算中..." : "生成分析"}
-              </button>
             </div>
-          </div>
         </section>
 
         {/* Heatmap Controls */}
@@ -400,6 +392,17 @@ export function PlanningSlidePanel(): JSX.Element {
             </div>
           </div>
         </section>
+      </div>
+      
+      <div className="slide-panel-footer">
+        <div className="footer-actions">
+          <button className="secondary" type="button" onClick={toggleAdmin}>
+            POI管理
+          </button>
+          <button className="primary" onClick={handleGenerate} disabled={mutation.isLoading}>
+            {mutation.isLoading ? "计算中..." : "生成分析"}
+          </button>
+        </div>
       </div>
     </div>
   );

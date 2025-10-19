@@ -23,7 +23,6 @@ const DEFAULT_PRIORITY_RANK =
 
 type FormMode = "create" | "edit";
 type StatusFilter = PlanningPoint["status"] | "all";
-type SortOrder = "createdAt" | "priority";
 
 function formatRelativeTime(timestampSeconds: number): string {
   if (!timestampSeconds) {
@@ -86,7 +85,6 @@ export function PlanningManager(): JSX.Element {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [listKeyword, setListKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("createdAt");
   const [autoSaveMessage, setAutoSaveMessage] = useState<string | null>(null);
 
   const autoSaveTimerRef = useRef<number | null>(null);
@@ -110,17 +108,9 @@ export function PlanningManager(): JSX.Element {
       const notes = point.notes?.toLowerCase() ?? "";
       return name.includes(keyword) || notes.includes(keyword);
     });
-    const sorted = [...filtered].sort((a, b) => {
-      if (sortOrder === "priority") {
-        if (a.priorityRank !== b.priorityRank) {
-          return a.priorityRank - b.priorityRank;
-        }
-        return b.updatedAt - a.updatedAt;
-      }
-      return b.createdAt - a.createdAt;
-    });
+    const sorted = [...filtered].sort((a, b) => b.createdAt - a.createdAt);
     return sorted;
-  }, [points, listKeyword, statusFilter, sortOrder]);
+  }, [points, listKeyword, statusFilter]);
 
   useEffect(() => {
     if (planningDraft?.center && errorMessage) {
@@ -542,38 +532,12 @@ export function PlanningManager(): JSX.Element {
       <p className="planning-intro">
         支持以候选商圈的方式保存多个规划点，可基于关键词搜索或地图点选快速建立，并在右侧数据面板中实时对比。
       </p>
-      <div className="planning-entry-actions">
-        <div className="planning-entry-actions__buttons">
-          <button className="secondary" type="button" onClick={() => handleStartCreate("search")}>
-            关键词新增
-          </button>
-          <button className="secondary" type="button" onClick={() => handleStartCreate("map")}>
-            地图点选
-          </button>
-        </div>
-        <div className="planning-sort">
-          <span>排序：</span>
-          <button
-            type="button"
-            className={sortOrder === "createdAt" ? "active" : ""}
-            onClick={() => setSortOrder("createdAt")}
-          >
-            创建时间
-          </button>
-          <button
-            type="button"
-            className={sortOrder === "priority" ? "active" : ""}
-            onClick={() => setSortOrder("priority")}
-          >
-            优先级
-          </button>
-        </div>
-      </div>
-      <div className="planning-filter-bar">
+        <div className="planning-filter-bar">
         <input
           value={listKeyword}
           onChange={(event) => setListKeyword(event.target.value)}
           placeholder="搜索候选点名称或备注"
+          className="planning-search-input"
         />
         <div className="planning-status-filter">
           <button
@@ -792,10 +756,7 @@ export function PlanningManager(): JSX.Element {
                   }
                 }}
               >
-                <div className="planning-item__checkbox">
-                  <input type="checkbox" disabled aria-label="暂不支持批量操作" />
-                </div>
-                <div className="planning-item__body">
+                  <div className="planning-item__body">
                   <div className="planning-item__header">
                     <span
                       className="planning-status-badge"

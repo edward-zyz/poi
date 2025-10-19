@@ -727,60 +727,27 @@
   margin: 0 0 12px;
 }
 
-.planning-entry-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
 .planning-entry-actions__buttons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
+  justify-content: space-between;
 }
 
-.planning-sort {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #64748b;
-}
 
-.planning-sort button {
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 999px;
-  padding: 4px 12px;
-  font-size: 12px;
-  color: #475569;
-  cursor: pointer;
-}
-
-.planning-sort button.active {
-  border-color: #2563eb;
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.08);
-}
 
 .planning-filter-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12px;
-  align-items: center;
   margin-bottom: 16px;
 }
 
-.planning-filter-bar input {
-  flex: 1;
-  min-width: 180px;
+.planning-search-input {
+  width: 100%;
   border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  padding: 6px 10px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 14px;
 }
 
 .planning-status-filter {
@@ -927,7 +894,7 @@
 
 .planning-item {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: flex-start;
   padding: 12px;
@@ -947,11 +914,6 @@
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
-.planning-item__checkbox input {
-  width: 16px;
-  height: 16px;
-  pointer-events: none;
-}
 
 .planning-item__body {
   display: flex;
@@ -1506,26 +1468,22 @@ button.loading .loading-spinner {
 
   /* Mobile planning list */
   .planning-item {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: 1fr;
     gap: 12px;
     padding: 12px;
-  }
-
-  .planning-item__checkbox {
-    width: 20px;
-    height: 20px;
   }
 
   /* Mobile planning status filter */
   .planning-status-filter {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
 
   .planning-status-filter button {
-    padding: 8px 12px;
+    padding: 10px 8px;
     font-size: 13px;
+    text-align: center;
   }
 
   /* Mobile planning actions */
@@ -1538,6 +1496,7 @@ button.loading .loading-spinner {
     width: 100%;
   }
 
+  
   /* Mobile poi card */
   .poi-card {
     padding: 12px;
@@ -1552,9 +1511,9 @@ button.loading .loading-spinner {
     font-size: 12px;
   }
 
-  /* Hide some desktop-only elements */
-  .panel-footer {
-    display: none;
+  /* Show panel-footer in analysis panel (scrolls with content) */
+  .analysis-panel .panel-footer {
+    display: block;
   }
 }
 
@@ -1682,6 +1641,19 @@ button.loading .loading-spinner {
     max-width: 380px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   }
+
+  .slide-panel-footer {
+    padding: 12px 16px;
+  }
+
+  .footer-actions {
+    gap: 8px;
+  }
+
+  .footer-actions button {
+    min-height: 48px;
+    font-size: 14px;
+  }
 }
 
 .slide-panel-left {
@@ -1736,6 +1708,37 @@ button.loading .loading-spinner {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  padding-bottom: 0;
+}
+
+.slide-panel-footer {
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.footer-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.footer-actions button {
+  flex: 1;
+  min-height: 44px;
+}
+
+.footer-info {
+  text-align: center;
+}
+
+/* Ensure panel-footer scrolls with content in analysis panel */
+.analysis-panel .panel-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  background: transparent;
+  padding: 12px 20px 8px;
 }
 
 /* Drag handle styles removed - mobile panels now only use button interaction */
@@ -2360,8 +2363,8 @@ button.loading .loading-spinner {
     bottom: 140px !important; /* Make room for new buttons */
   }
 
-  /* Hide panel footers on mobile to avoid overlap */
-  .panel-footer {
+  /* Hide panel footers on mobile to avoid overlap, except in analysis panel */
+  .panel-footer:not(.analysis-panel .panel-footer) {
     display: none !important;
   }
 
