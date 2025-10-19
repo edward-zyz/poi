@@ -14,8 +14,39 @@ function ensureDir(filePath: string): void {
   }
 }
 
+async function ensureDirWithRetry(filePath: string, maxRetries: number = 5): Promise<void> {
+  const dir = path.dirname(filePath);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      
+      // 测试目录是否可写
+      const testFile = path.join(dir, '.migration-test');
+      fs.writeFileSync(testFile, 'test');
+      fs.unlinkSync(testFile);
+      
+      return; // 成功，退出重试
+    } catch (error) {
+      if (attempt === maxRetries) {
+        throw new Error(`Failed to create or access directory after ${maxRetries} attempts: ${dir}. Error: ${error}`);
+      }
+      
+      // 等待后重试，递增延迟
+      await new Promise(resolve => setTimeout(resolve, attempt * 200));
+    }
+  }
+}
+
 export async function ensureMigrations(databasePath: string): Promise<void> {
-  ensureDir(databasePath);
+  // 确保数据库目录存在，等待Volume挂载完成
+  await ensureDirWithRetry(databasePath);
+  
+  // 等待一小段时间确保文件系统同步
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
   const db = new Database(databasePath);
   try {
     db.pragma("journal_mode = WAL");

@@ -86,9 +86,16 @@ export function loadConfig(): AppConfig {
   const port = Number(process.env.PORT ?? 4000);
   const cacheTtlHours = Number(process.env.CACHE_TTL_HOURS ?? DEFAULT_CACHE_TTL_HOURS);
   
-  // 检测Railway环境
-  const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  // 检测Railway环境 - 更准确的检测逻辑
+  const isRailway = Boolean(
+    process.env.RAILWAY_ENVIRONMENT || 
+    process.env.RAILWAY_VOLUME_MOUNT_PATH ||
+    process.env.RAILWAY_PROJECT_ID ||
+    process.env.RAILWAY_SERVICE_NAME ||
+    process.env.PORT // Railway会设置PORT环境变量
+  );
   
+  // 数据库路径优先级：明确设置 > Railway Volume > 本地路径
   const databasePath =
     process.env.SQLITE_DB_PATH ??
     (process.env.NODE_ENV === "test" 
