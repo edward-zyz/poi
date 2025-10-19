@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 
 import { usePoiStore } from "../store/usePoiStore";
 import { PlanningManager } from "./PlanningManager";
@@ -28,6 +28,10 @@ export function RightPanel(): JSX.Element {
     analysisLoadingId,
     analysisError,
     densityResult,
+    city,
+    setPlanningDraft,
+    setAwaitingPlanningMapClick,
+    setSelectedPlanningPoint,
   } = usePoiStore();
 
   const selectedPlanningPoint = useMemo(
@@ -74,6 +78,55 @@ export function RightPanel(): JSX.Element {
   const handleHeaderClick = () => {
     toggleRight();
   };
+
+  const handleStartCreate = useCallback(
+    (source: "search" | "map") => {
+      const DEFAULT_RADIUS = 1000;
+      const PLANNING_STATUS_OPTIONS = [
+        { value: "pending", label: "待考察", color: "#22c55e" },
+        { value: "investigating", label: "考察中", color: "#f59e0b" },
+        { value: "rejected", label: "已否决", color: "#ef4444" },
+        { value: "approved", label: "已通过", color: "#3b82f6" },
+      ];
+      const PLANNING_PRIORITY_OPTIONS = [
+        { value: 100, label: "高优先级", hint: "重点考察" },
+        { value: 200, label: "中优先级", hint: "常规考察" },
+        { value: 300, label: "低优先级", hint: "有空再看" },
+        { value: 400, label: "观察", hint: "持续关注" },
+      ];
+      
+      const defaultStatusOption = PLANNING_STATUS_OPTIONS[0];
+      const defaultPriorityOption = PLANNING_PRIORITY_OPTIONS[1] ?? PLANNING_PRIORITY_OPTIONS[0];
+      const statusValue = defaultStatusOption?.value ?? "pending";
+      const statusColor = defaultStatusOption?.color ?? "#22c55e";
+      const priorityValue = defaultPriorityOption?.value ?? 200;
+
+      setPlanningDraft({
+        id: undefined,
+        city,
+        source,
+        sourceType: source === "map" ? "manual" : "manual",
+        name: source === "map" ? `候选点${planningPoints.length + 1}` : "",
+        radiusMeters: DEFAULT_RADIUS,
+        status: statusValue,
+        colorToken: statusValue,
+        color: statusColor,
+        priorityRank: priorityValue,
+        notes: "",
+        center: undefined,
+        sourcePoiId: null,
+      });
+      setAwaitingPlanningMapClick(source === "map");
+      setSelectedPlanningPoint(null);
+    },
+    [
+      city,
+      planningPoints.length,
+      setAwaitingPlanningMapClick,
+      setPlanningDraft,
+      setSelectedPlanningPoint,
+    ]
+  );
 
   return (
     <aside className={`panel panel-top right ${rightCollapsed ? "collapsed" : ""}`}>
@@ -199,8 +252,11 @@ export function RightPanel(): JSX.Element {
           数据面板更新时间：{lastUpdatedText}
         </span>
         <div className="actions">
-          <button className="secondary" type="button" onClick={() => window.location.reload()}>
-            重新加载
+          <button className="primary" type="button" onClick={() => handleStartCreate("search")}>
+            关键词添加
+          </button>
+          <button className="primary" type="button" onClick={() => handleStartCreate("map")}>
+            地图选点
           </button>
         </div>
       </div>

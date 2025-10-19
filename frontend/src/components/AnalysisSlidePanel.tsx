@@ -274,10 +274,10 @@ export function AnalysisSlidePanel(): JSX.Element {
       <div className="slide-panel-footer">
         <div className="footer-actions">
           <button className="primary" type="button" onClick={() => handleStartCreate("search")}>
-            关键词新增
+            关键词添加
           </button>
           <button className="primary" type="button" onClick={() => handleStartCreate("map")}>
-            地图点选
+            地图选点
           </button>
         </div>
       </div>

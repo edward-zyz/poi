@@ -118,6 +118,17 @@ export function PlanningManager(): JSX.Element {
     }
   }, [planningDraft?.center, errorMessage]);
 
+  // Sync formMode with planningDraft changes
+  useEffect(() => {
+    if (planningDraft && !formMode) {
+      // When planningDraft is set externally and formMode is not set, determine formMode
+      setFormMode(planningDraft.id ? "edit" : "create");
+    } else if (!planningDraft && formMode) {
+      // When planningDraft is cleared, reset formMode
+      setFormMode(null);
+    }
+  }, [planningDraft, formMode]);
+
   const clearAutoSaveTimer = useCallback(() => {
     if (autoSaveTimerRef.current) {
       window.clearTimeout(autoSaveTimerRef.current);
