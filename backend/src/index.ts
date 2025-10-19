@@ -54,8 +54,9 @@ async function bootstrap(): Promise<void> {
     let volumeStatus = "not-applicable";
     if (isRailway) {
       try {
-        const dbExists = require("fs").existsSync(config.databasePath);
-        const storageExists = require("fs").existsSync("/mnt/data");
+        const fs = require("node:fs");
+        const dbExists = fs.existsSync(config.databasePath);
+        const storageExists = fs.existsSync("/mnt/data");
         volumeStatus = dbExists ? "mounted-with-data" : (storageExists ? "mounted-empty" : "not-mounted");
       } catch (error) {
         volumeStatus = "error";
@@ -112,7 +113,7 @@ async function bootstrap(): Promise<void> {
 
     if (isRailway) {
       try {
-        const fs = require("fs");
+        const fs = require("node:fs");
         
         // 检查/mnt/data目录
         diagnosis.storageChecks.storageDirExists = fs.existsSync("/mnt/data");
