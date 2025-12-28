@@ -1,130 +1,106 @@
-# 餐饮门店选址辅助工具 (Location Scout MVP)
+# 餐饮门店选址辅助工具 (Location Scout) 🚀
 
-本仓库实现了餐饮门店选址辅助工具的最小可行产品，包括：
+欢迎来到 **Location Scout**！这是一个基于高德地图 API 的餐饮选址辅助工具，旨在通过 POI（兴趣点）大数据分析，帮助餐饮从业者科学评估开店位置。
 
-- **后端服务**：基于 Express + better-sqlite3，封装高德地图 API 调用，并对 POI 结果进行本地缓存与分析。
-- **前端应用**：基于 React + Vite，实现全屏地图交互、图层控制、目标点位分析面板等核心 UX。
-- **配置与数据**：提供高德地图配置模板、基础品牌关键词清单、POI 缓存策略等。
+无论你是想学习全栈开发，还是想直接将其投入实战，本指南都将帮助你快速在本地搭建并运行起这套系统。
 
-> ⚠️ 默认未携带高德 API Key，运行前请按照下文说明完成配置。
+---
 
-## 目录结构
+## 🛠 快速上手指南
 
-```
-├── backend              # Node.js (TypeScript) 后端服务
-│   ├── src
-│   │   ├── index.ts     # 应用入口
-│   │   ├── providers    # 高德 API provider 封装
-│   │   ├── routes       # REST API 路由
-│   │   ├── services     # 核心业务逻辑（热力图、目标点位分析）
-│   │   └── storage      # SQLite 缓存与迁移
-│   └── test             # Node test 测试用例
-├── frontend             # React 前端 (Vite)
-│   ├── src
-│   │   ├── components   # TopBar / MapView / Panel 等组件
-│   │   ├── hooks        # 高德地图脚本加载钩子
-│   │   ├── services     # 与后端通信的 API 封装
-│   │   └── store        # Zustand 状态管理
-├── config
-│   └── gaode.config.json # 高德地图配置模板
-├── design               # HTML 版 UX 设计稿
-└── storage              # 默认 SQLite 数据库存储目录
+### 1. 环境准备
+在开始之前，请确保你的电脑已安装以下基础环境：
+- **Node.js**: 推荐版本 v18.x 或更高 (可以通过 `node -v` 查看)。
+- **npm**: 随 Node.js 一起安装。
+- **高德地图 API Key**: 你需要前往 [高德开放平台](https://lbs.amap.com/) 注册并申请一个 **Web 服务** 类型的 Key。
+
+### 2. 获取代码与安装依赖
+```bash
+# 克隆/下载项目后进入目录
+cd POI
+
+# 安装全量依赖 (根目录下运行即可，会自动处理前端和后端)
+npm install
 ```
 
-## 环境准备
+### 3. 核心配置 (关键)
+项目需要配置高德地图密钥才能正常工作。
 
-1. **安装依赖**
-
-   ```bash
-   npm install
+**后端配置：**
+1. 找到 `config/gaode.config.json.example` (如果没有，直接创建 `config/gaode.config.json`)。
+2. 填写你的 API Key：
+   ```json
+   {
+     "apiKey": "你的高德REST_API_KEY",
+     "securityJsCode": "你的安全密钥_JS_CODE"
+   }
    ```
 
-2. **配置高德地图 API Key**
-
-   - 编辑 `config/gaode.config.json`，将 `apiKey` 替换为 REST API 密钥，并填写 `securityJsCode`（JS 安全密钥）。
-   - 或在运行时设置环境变量 `GAODE_API_KEY` / `GAODE_SECURITY_JS_CODE`，并可通过 `GAODE_CONFIG_PATH` 指定配置文件路径。
-
-3. **（可选）创建 `.env` 文件** 用于前端注入高德地图浏览器端密钥：
-
-   ```bash
-   cd frontend
-   cat <<'EOF' > .env.local
-   VITE_GAODE_KEY=前端可用的高德JS API Key
-   # 可选：覆盖默认代理地址（默认指向 http://localhost:4000/_AMapService）
-   # VITE_AMAP_SERVICE_HOST=https://your-domain/_AMapService
-   # 可选：仅调试时使用，生产建议通过代理追加 securityJsCode
-   # VITE_GAODE_SECURITY_JS_CODE=你的安全密钥
-   EOF
+**前端配置：**
+1. 进入 `frontend` 目录。
+2. 创建 `.env.local` 文件并添加：
+   ```env
+   VITE_GAODE_KEY=你的前端JS_API_KEY
    ```
 
-   > 注意：前端使用的 Key 只能用于浏览器 JS SDK，建议开启安全域名白名单。
+### 4. 启动服务
+建议打开两个终端窗口，分别运行：
 
-## 启动方式
+- **终端 1 (后端):**
+  ```bash
+  npm run dev:backend
+  ```
+- **终端 2 (前端):**
+  ```bash
+  npm run dev:frontend
+  ```
 
-### 后端服务
+启动成功后，打开浏览器访问 `http://localhost:5173` 即可看到精美的地图交互界面！
 
-```bash
-# 开发模式（支持热重载）
-npm run dev:backend
-```
+---
 
-启动后端默认监听 `http://localhost:4000`，暴露以下接口：
+## 🤖 AI IDE 使用小贴士 (Cursor/Windsurf/etc.)
 
-- `GET /api/status`
-- `POST /api/poi/density`
-- `POST /api/poi/analysis`
+如果你正在使用 AI IDE（如 **Cursor**, **Windsurf**, 或集成了 **Antigravity** 的环境），恭喜你！你可以通过“对话”而非单纯写代码来维护和扩展这个项目。以下是一些基本功：
 
-### 前端应用
+### 💡 核心操作指令
+1. **Chat (对话模式 - `Cmd+L` / `Ctrl+L`):**
+   - **用途**：问问题、解释代码、构思新功能。
+   - **示例**：`"@Files 帮我解释一下后端缓存是怎么设计的？"` 或 `"我想在地图右侧加一个历史记录面板，该怎么改？"`
+2. **Edit (编辑模式 - `Cmd+K` / `Ctrl+K`):**
+   - **用途**：直接修改选中的代码块或生成新代码。
+   - **示例**：选中一段 CSS，按 `Cmd+K` 输入 `"把这里的背景改成磨砂玻璃效果"`。
+3. **Terminal (终端控制):**
+   - AI 通常可以直接读取你的报错信息并给出修复建议。如果运行失败，直接把报错丢给 AI 即可。
 
-```bash
-# 启动 Vite 开发服务 (默认 http://localhost:5173)
-npm run dev:frontend
-```
+### 🚀 进阶心法
+- **上下文是王道**：在提问时，使用 `@` 符号引入相关文件。例如：`"@backend/src/index.ts 这里是怎么处理高德 API 超时的？"`。这样 AI 才能“看”到正确的代码。
+- **小步快跑**：不要一次性让 AI 实现一个巨大的功能。先让它加一个按钮，再让它写点击逻辑，最后实现后端接口。
+- **大胆尝试，随时回滚**：AI 写出的程序如果不满意，直接点击 `Discard` 撤销，或者根据它的思路微调。
 
-前端已配置：
-- `/api` → `http://localhost:4000`
-- `window._AMapSecurityConfig.serviceHost` → `http://localhost:4000/_AMapService`
+---
 
-确保后端已启动，且 `_AMapService` 代理可访问。
+## 🏗 技术架构
 
-### 生产构建
+- **前端**: React + Vite + Zustand + AMap JS SDK (现代、极速、响应式)
+- **后端**: Node.js + Express + TypeScript (结构清晰、类型安全)
+- **数据库**: SQLite (轻量级，无需安装数据库软件，即插即用)
+- **缓存**: 基于本地 SQLite 的 POI 数据缓存，减少 API 调用频次，降低成本。
 
-```bash
-npm run build
-```
+---
 
-构建后的前端文件位于 `frontend/dist`，后端编译产物位于 `backend/dist`。
+## 📈 未来规划 (v2.0)
 
-## 测试与质量保障
+本项目正朝着 SaaS 化迈进，未来将支持：
+- 📱 **微信小程序端**: 随时随地实地考察。
+- 👥 **多租户体系**: 团队协作，支持多品牌管理。
+- 💳 **订阅模式**: 账号等级与 API 配额管理。
+- 📊 **深度分析**: 引入人流、商圈消费指数等更多维度。
 
-- 后端：`npm run test:backend`
-  - 覆盖地理计算与核心服务逻辑（使用 mock provider + 临时 SQLite 数据库）。
-- 前端：当前 `npm run test:frontend` 仅包含关键词解析单元测试；若在 CI/本地运行失败，可暂时跳过（Vitest 运行环境受限）。
-- Lint：`npm run lint`
-- Format：`npm run format`
-- 调用示例脚本：`npm --workspace backend run gaode:test -- --keyword=喜茶 --city=上海市`
+---
 
-## 运行时行为说明
+## 🤝 贡献与反馈
+如果你在使用过程中遇到任何问题，或者有更好的选址模型建议，欢迎随时交流！
 
-- **POI 缓存**：所有高德 API 结果写入 `storage/poi-cache.sqlite`。默认缓存 24 小时，可通过环境变量 `CACHE_TTL_HOURS` 调整。
-- **JS API 安全密钥**：后端提供 `/_AMapService` 代理，自动在请求中追加 `securityJsCode`，避免密钥暴露。若生产环境有自建网关，可将 `VITE_AMAP_SERVICE_HOST` 指向对应域名。
-- **API 超时**：为确保刷新缓存时拉取所有分页，`timeoutMs` 默认设为 600000（10 分钟）。如需更短超时可在 `config/gaode.config.json` 或 `GAODE_TIMEOUT_MS` 中调整。
-- **分析流程**：
-  1. 在 TopBar 输入主品牌/竞品关键词并生成热力图。
-  2. 在地图上点击候选点，触发半径 1000m 的目标点位分析。
-  3. 左侧浮层管理图层开关与半径提示，右侧展示门店数量、密度等级与示例门店。
-- **日志**：开发/测试环境采用 `pino-pretty`，生产环境输出 JSON 格式。
-
-## 已知限制
-
-- 高德接口调用仍需真实网络环境与配额支持，测试环境默认使用本地缓存。
-- 前端目前未实现多候选点管理、热力图实时渐变等高级特性，可在迭代中扩展。
-- 部分测试依赖 Node 20 `--experimental-loader`，若未来版本调整需同步脚本。
-
-## 参考资料
-
-- [产品需求文档](spec.md)
-- [HTML UX 设计稿](design/location-scout-ux.html)
-- [基础品牌关键词清单](basebrand.md)
-
-如需进一步扩展（如评分模型、人群数据等），可基于 `spec.md` 内的 roadmap 逐步实现。
+---
+*Powered by Antigravity AI Assistant.*

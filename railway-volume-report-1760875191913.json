@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-10-19T11:59:51.912Z",
+  "url": "http://localhost:4000",
+  "results": {
+    "serviceStatus": true,
+    "volumeDiagnosis": true,
+    "cacheStats": true,
+    "dataPersistence": true
+  },
+  "summary": {
+    "overall": true,
+    "volumeHealthy": false,
+    "databaseReady": false,
+    "dataPersisted": true
+  },
+  "recommendations": [
+    "Volume配置有问题，请检查railway.toml配置和Volume挂载",
+    "数据库文件不存在，检查Volume初始化和权限设置"
+  ]
+}
