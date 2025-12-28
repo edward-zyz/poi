@@ -64,7 +64,7 @@ npm install
 如果你是一个不懂编程的业务人员，通过 **Cursor** 或 **Windsurf** 等 AI IDE 同样可以丝滑启动本项目。AI 将充当你的“CTO”。
 
 ### 1. 软件安装
-*   下载并安装 [Cursor](https://cursor.sh/) 或 [Windsurf](https://codeium.com/windsurf)。
+*   下载并安装 [Cursor](https://cursor.sh/)、[Windsurf](https://codeium.com/windsurf)、字节跳动的 [Trae](https://www.trae.ai/) / [MarsCode](https://www.marscode.cn/) 或 腾讯的 [AI 代码助手](https://copilot.tencent.com/)。
 *   用它打开本项目的根目录文件夹。
 
 ### 2. 使用“对话”启动项目
