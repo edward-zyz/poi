@@ -1,6 +1,9 @@
 import "./settings/loadEnv.js";
 import express from "express";
 import cors from "cors";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { createServer } from "http";
 
 import { loadConfig } from "./settings/config.js";
@@ -11,26 +14,29 @@ import { poiRouter } from "./routes/poiRoutes.js";
 import { createGaodeProxyRouter } from "./routes/gaodeProxy.js";
 import { planningRouter } from "./routes/planningRoutes.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const config = loadConfig();
 
 async function bootstrap(): Promise<void> {
   const isRailway = Boolean(
-    process.env.RAILWAY_ENVIRONMENT || 
+    process.env.RAILWAY_ENVIRONMENT ||
     process.env.RAILWAY_VOLUME_MOUNT_PATH ||
     process.env.RAILWAY_PROJECT_ID ||
     process.env.RAILWAY_SERVICE_NAME ||
     process.env.PORT
   );
-  
+
   // 确保存储目录存在（Railway环境）- 异步等待Volume挂载
   await ensureStorageDirectory();
-  
+
   // 检查存储健康状态
   if (isRailway && !checkStorageHealth()) {
     logger.error("Railway storage health check failed - POI cache may not persist");
     throw new Error("Railway storage health check failed");
   }
-  
+
   // 运行数据库迁移
   logger.info({ databasePath: config.databasePath, isRailway }, "Starting database migrations");
   await ensureMigrations(config.databasePath);
@@ -43,13 +49,13 @@ async function bootstrap(): Promise<void> {
 
   app.get("/api/status", (_req, res) => {
     const isRailway = Boolean(
-      process.env.RAILWAY_ENVIRONMENT || 
+      process.env.RAILWAY_ENVIRONMENT ||
       process.env.RAILWAY_VOLUME_MOUNT_PATH ||
       process.env.RAILWAY_PROJECT_ID ||
       process.env.RAILWAY_SERVICE_NAME ||
       process.env.PORT
     );
-    
+
     // 检查Volume状态
     let volumeStatus = "not-applicable";
     if (isRailway) {
@@ -62,7 +68,7 @@ async function bootstrap(): Promise<void> {
         volumeStatus = "error";
       }
     }
-    
+
     res.json({
       service: "poi-location-scout-backend",
       status: "ok",
@@ -84,7 +90,7 @@ async function bootstrap(): Promise<void> {
   // Railway Volume诊断端点
   app.get("/api/diagnose-volume", (_req, res) => {
     const isRailway = Boolean(
-      process.env.RAILWAY_ENVIRONMENT || 
+      process.env.RAILWAY_ENVIRONMENT ||
       process.env.RAILWAY_VOLUME_MOUNT_PATH ||
       process.env.RAILWAY_PROJECT_ID ||
       process.env.RAILWAY_SERVICE_NAME ||
@@ -114,13 +120,13 @@ async function bootstrap(): Promise<void> {
     if (isRailway) {
       try {
         const fs = require("node:fs");
-        
+
         // 检查/mnt/data目录
         diagnosis.storageChecks.storageDirExists = fs.existsSync("/mnt/data");
-        
+
         // 检查数据库文件
         diagnosis.storageChecks.databaseExists = fs.existsSync(config.databasePath);
-        
+
         // 检查目录权限
         if (diagnosis.storageChecks.storageDirExists) {
           try {
@@ -132,7 +138,7 @@ async function bootstrap(): Promise<void> {
             diagnosis.storageChecks.storageWritable = false;
             diagnosis.errors.push(`Storage not writable: ${error instanceof Error ? error.message : String(error)}`);
           }
-          
+
           // 列出目录内容
           try {
             const files = fs.readdirSync("/mnt/data");
@@ -141,7 +147,7 @@ async function bootstrap(): Promise<void> {
             diagnosis.errors.push(`Cannot list storage directory: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
-        
+
         // 检查数据库大小
         if (diagnosis.storageChecks.databaseExists) {
           try {
@@ -152,7 +158,7 @@ async function bootstrap(): Promise<void> {
             diagnosis.errors.push(`Cannot get database stats: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
-        
+
       } catch (error) {
         diagnosis.errors.push(`Diagnosis failed: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -174,14 +180,32 @@ async function bootstrap(): Promise<void> {
   app.use("/api/poi", poiRouter(config));
   app.use("/api/planning", planningRouter(config));
 
+  // --- 静态文件托管 (单服务合并部署) ---
+  // 生产环境下托管前端构建产物
+  const frontendDistPath = path.resolve(__dirname, "../../frontend/dist");
+
+  if (fs.existsSync(frontendDistPath)) {
+    logger.info({ path: frontendDistPath }, "Serving static files from frontend/dist");
+    app.use(express.static(frontendDistPath));
+
+    // 处理 SPA 路由：所有非 API 请求重定向到 index.html
+    app.get("*", (req, res) => {
+      if (!req.path.startsWith("/api") && !req.path.startsWith("/_AMapService")) {
+        res.sendFile(path.join(frontendDistPath, "index.html"));
+      }
+    });
+  } else {
+    logger.warn({ path: frontendDistPath }, "Frontend dist directory not found, static serving disabled");
+  }
+
   const server = createServer(app);
   const host = "0.0.0.0";
-  
+
   // 增加服务器超时时间，支持长时间运行的缓存刷新任务
   server.timeout = 300000; // 5分钟
   server.keepAliveTimeout = 65000; // 65秒
   server.headersTimeout = 66000; // 66秒
-  
+
   server.listen(config.port, host, () => {
     logger.info(`Backend listening on http://${host}:${config.port}`);
     logger.info(`Server timeout configured: ${server.timeout}ms`);

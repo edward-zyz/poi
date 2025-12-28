@@ -9,7 +9,8 @@
   "scripts": {
     "dev:backend": "npm --workspace backend run dev",
     "dev:frontend": "npm --workspace frontend run dev",
-    "build": "npm --workspace backend run build && npm --workspace frontend run build",
+    "build": "npm --workspace frontend run build && npm --workspace backend run build",
+    "start": "node backend/dist/index.js",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "npm --workspace backend run test",
     "test:frontend": "npm --workspace frontend run test",

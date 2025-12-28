@@ -10,4 +10,4 @@ restartPolicyMaxRetries = 10
 # 持久化存储SQLite数据库
 [[deploy.volumes]]
 name = "poi-storage"
-mountTo = "/app/storage"
+mountTo = "/mnt/data"
